@@ -1743,7 +1743,8 @@ window.BIBLE_LOAD_PROMISE = fetch('./cmn-cu89s_vpl.txt')
     text.split('\n').forEach(line => {
       line = line.trim();
       if (!line) return;
-      const m = line.match(/^(\S+)\s+(\d+)\s+(\d+)\s+(.+)$/);
+      const m = line.match(/^([A-Z0-9]+)\s+(\d+):(\d+)\s+(.+)$/);
+      
       if (!m) return;
       const [, book, chStr, vStr, txt] = m;
       const ch = parseInt(chStr, 10);
@@ -3303,7 +3304,7 @@ function renderWorshipPage(){
     <div class="worship-info-row">
       <div class="worship-info-card">
         <div class="worship-info-label">本周证道</div>
-        <div class="worship-info-value">${escapeHtml(info.sermon||'待填写')} <span style="font-size:13px;font-weight:400;color:#999;">${info.sermon&&info.sermon!=='待填写'?'弟兄':''}</span>${sermonIcon}</div>
+        <div class="worship-info-value">${escapeHtml(info.sermon||'待填写')} <span style="font-size:13px;font-weight:400;color:#999;">${info.sermon&&info.sermon!=='待填写'?'':''}</span>${sermonIcon}</div>
       </div>
       <div class="worship-info-card">
         <div class="worship-info-label">本周主题</div>
