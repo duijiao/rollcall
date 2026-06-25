@@ -211,7 +211,7 @@ body.device-desktop .container{max-width:1100px;}
 .dinner-members-grid{display:flex;flex-direction:column;gap:6px;}
 .dinner-member-row{
   display:flex;align-items:center;gap:8px;
-  padding:7px 10px;border-radius:12px;background:#faf8f4;
+  padding:7px 10px;border-radius:12px;background:var(--parchment);
 }
 .dinner-member-avatar{
   width:28px;height:28px;border-radius:50%;
@@ -425,27 +425,37 @@ body.device-desktop .container{max-width:1100px;}
 .song-chip{display:inline-flex;width:max-content;max-width:100%;background:var(--gold-light);border:1px solid rgba(90,124,69,.2);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--ink);}
 
 /* ══ WORSHIP PAGE (New App Style) ══ */
-.worship-page-wrap{padding:0 0 16px;max-width:540px;margin:0 auto;padding-top:var(--header-h);}
+.worship-page-wrap{padding:0 0 16px;max-width:540px;margin:0 auto;}
 
-/* Header section */
-.worship-header-section{padding:20px 18px 12px;}
-.worship-main-title{font-family:'Noto Serif SC',serif;font-size:24px;font-weight:700;color:var(--ink);margin-bottom:3px;}
-.worship-main-sub{font-size:13px;color:#999;margin-bottom:10px;}
-.worship-title-line{width:32px;height:3px;background:var(--sage);border-radius:2px;margin-bottom:0;}
-.worship-header-actions{display:flex;justify-content:flex-end;margin-bottom:12px;}
-.worship-download-btn{
-  display:flex;align-items:center;gap:6px;
-  border:1.5px solid #ddd;background:#fff;border-radius:14px;
-  padding:9px 14px;font-size:13px;font-weight:600;color:var(--ink);
-  cursor:pointer;font-family:inherit;white-space:nowrap;
+/* App Bar (Bible style) */
+.worship-appbar{
+  background:#fff;padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid rgba(0,0,0,.05);
+  flex-shrink:0;
 }
-.worship-download-btn svg{width:15px;height:15px;color:var(--sage);}
+.worship-appbar-left{display:flex;align-items:center;gap:10px;}
+.worship-appbar-icon{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#3d9b5a,#2d7a44);
+  box-shadow:0 2px 8px rgba(45,122,68,.3);
+  display:flex;align-items:center;justify-content:center;
+}
+.worship-appbar-icon svg{width:18px;height:18px;color:#fff;}
+.worship-appbar-title{font-family:'Noto Serif SC',serif;font-size:17px;font-weight:700;color:var(--ink);}
+.worship-appbar-right{display:flex;align-items:center;gap:14px;}
+.worship-appbar-btn{background:none;border:none;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;font-family:'Noto Sans SC',sans-serif;}
+.worship-appbar-btn svg{width:22px;height:22px;}
+
+/* Header section (remove old padding) */
+.worship-header-section{display:none;}
+.worship-main-title,.worship-main-sub,.worship-title-line,.worship-header-actions,.worship-download-btn{}
 
 /* Date tabs */
 .worship-date-tabs{display:flex;gap:8px;overflow-x:auto;padding:14px 18px 14px;scrollbar-width:none;}
 .worship-date-tabs::-webkit-scrollbar{display:none;}
 .worship-date-tab{
-  border:1.5px solid #e0ddd5;background:#fff;color:var(--muted);
+  border:1.5px solid var(--stone);background:#fff;color:var(--muted);
   border-radius:14px;padding:8px 14px;white-space:nowrap;
   font-size:13px;font-weight:600;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:1px;
@@ -455,7 +465,7 @@ body.device-desktop .container{max-width:1100px;}
 .worship-date-tab .tab-day{font-size:11px;font-weight:400;}
 .worship-date-tab.active{background:var(--sage);border-color:var(--sage);color:white;}
 .worship-date-tab-add{
-  border:1.5px dashed #d0cdc5;background:transparent;color:#bbb;
+  border:1.5px dashed var(--stone);background:transparent;color:#bbb;
   border-radius:14px;width:44px;height:58px;
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;flex-shrink:0;
@@ -465,7 +475,7 @@ body.device-desktop .container{max-width:1100px;}
 /* Info cards row */
 .worship-info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 14px;}
 .worship-info-card{
-  background:#f3f3ef;border-radius:16px;padding:14px 14px 12px;
+  background:var(--parchment);border-radius:16px;padding:14px 14px 12px;
 }
 .worship-info-label{font-size:12px;color:#999;margin-bottom:6px;}
 .worship-info-value{font-size:17px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;}
@@ -478,11 +488,11 @@ body.device-desktop .container{max-width:1100px;}
 }
 .worship-team-head{
   display:flex;align-items:center;gap:8px;
-  padding:16px 16px 14px;border-bottom:1px solid #f0ede8;
+  padding:16px 16px 14px;border-bottom:1px solid var(--stone);
 }
 .worship-team-icon{
   width:30px;height:30px;border-radius:9px;
-  background:var(--sage);display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#3d9b5a,#2d7a44);display:flex;align-items:center;justify-content:center;
 }
 .worship-team-icon svg{width:16px;height:16px;color:white;}
 .worship-team-title{font-size:16px;font-weight:700;color:var(--ink);}
@@ -490,12 +500,12 @@ body.device-desktop .container{max-width:1100px;}
 /* Role row */
 .worship-role-row{
   display:flex;align-items:center;gap:12px;
-  padding:14px 16px;border-bottom:1px solid #f5f3ee;
+  padding:14px 16px;border-bottom:1px solid var(--stone);
 }
 .worship-role-row:last-of-type{border-bottom:none;}
 .worship-role-icon-wrap{
   width:42px;height:42px;border-radius:12px;
-  background:#f0ede8;display:flex;align-items:center;justify-content:center;
+  background:var(--parchment);display:flex;align-items:center;justify-content:center;
   flex-shrink:0;
 }
 .worship-role-icon-wrap svg{width:20px;height:20px;color:var(--sage);}
@@ -537,7 +547,7 @@ body.device-desktop .container{max-width:1100px;}
 .worship-manage-panel{display:none;}
 .worship-manage-panel.open{display:block;}
 .worship-manage-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start;}
-.inline-picker{background:#f8f8f6;border:1px solid var(--stone);border-radius:14px;padding:12px;min-height:260px;}
+.inline-picker{background:var(--parchment);border:1px solid var(--stone);border-radius:14px;padding:12px;min-height:260px;}
 .inline-picker-title{font-weight:700;margin-bottom:8px;}
 .servant-tools{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
 .mini-muted{font-size:12px;color:var(--muted);line-height:1.5;}
@@ -601,7 +611,7 @@ body.device-desktop .container{max-width:1100px;}
 
 /* ══ BIBLE PAGE - APP STYLE ══ */
 #page-bible{
-  background:#f2f2f0;
+  background:var(--parchment);
   display:none;flex-direction:column;
   position:fixed;inset:0 0 var(--nav-h) 0;z-index:10;
   overflow:hidden;
@@ -624,11 +634,12 @@ body.device-desktop .container{max-width:1100px;}
 .bible-appbar-left{display:flex;align-items:center;gap:10px;}
 .bible-appbar-icon{
   width:34px;height:34px;border-radius:9px;
-  background:var(--sage);
+  background:linear-gradient(135deg,#3d9b5a,#2d7a44);
+  box-shadow:0 2px 8px rgba(45,122,68,.3);
   display:flex;align-items:center;justify-content:center;
 }
 .bible-appbar-icon svg{width:19px;height:19px;color:#fff;}
-.bible-appbar-title{font-family:'Noto Serif SC',serif;font-size:18px;font-weight:700;color:var(--ink);}
+.bible-appbar-title{font-family:'Noto Serif SC',serif;font-size:17px;font-weight:700;color:var(--ink);}
 .bible-appbar-right{display:flex;align-items:center;gap:16px;}
 .bible-appbar-btn{background:none;border:none;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;font-family:'Noto Sans SC',sans-serif;}
 .bible-appbar-btn svg{width:22px;height:22px;}
@@ -641,7 +652,7 @@ body.device-desktop .container{max-width:1100px;}
 }
 .bible-select{
   width:100%;padding:9px 8px;
-  border:1.5px solid #e0ddd5;border-radius:12px;
+  border:1.5px solid var(--stone);border-radius:12px;
   font-size:14px;color:var(--ink);
   outline:none;font-family:inherit;background:#fff;
   -webkit-appearance:none;appearance:none;
@@ -659,7 +670,7 @@ body.device-desktop .container{max-width:1100px;}
 }
 .bible-search-wrap{
   flex:1;display:flex;align-items:center;gap:8px;
-  background:#f2f0eb;border-radius:12px;padding:9px 12px;
+  background:rgba(0,0,0,.05);border-radius:12px;padding:9px 12px;
 }
 .bible-search-wrap svg{width:16px;height:16px;color:#aaa;flex-shrink:0;}
 .bible-search-input{
@@ -675,7 +686,7 @@ body.device-desktop .container{max-width:1100px;}
 .bible-filter-btn svg{width:20px;height:20px;}
 
 .bible-last-read{
-  background:#f8f6f0;border-radius:14px;
+  background:var(--gold-light);border-radius:14px;
   padding:11px 14px;margin:12px 14px 0;
   display:flex;align-items:center;justify-content:space-between;
   border:1px solid #e8e4da;
@@ -706,7 +717,7 @@ body.device-desktop .container{max-width:1100px;}
 .bible-chapter-tools{display:flex;gap:8px;}
 .bible-tool-btn{
   display:flex;flex-direction:column;align-items:center;gap:2px;
-  background:#f2f0eb;border:none;border-radius:10px;
+  background:var(--parchment);border:none;border-radius:10px;
   padding:7px 10px;cursor:pointer;
   font-size:10px;font-family:'Noto Sans SC',sans-serif;color:#555;
 }
@@ -715,7 +726,7 @@ body.device-desktop .container{max-width:1100px;}
 .bible-result-list{display:flex;flex-direction:column;}
 .bible-verse{display:flex;align-items:flex-start;gap:12px;padding:8px 0;}
 .bible-verse-num{min-width:20px;font-size:14px;font-weight:700;color:var(--sage);flex-shrink:0;margin-top:2px;line-height:1.6;}
-.bible-verse-text{font-size:16px;color:#222;line-height:1.75;flex:1;}
+.bible-verse-text{font-size:16px;color:var(--ink);line-height:1.75;flex:1;}
 .bible-verse-text mark{background:none;color:var(--sage);font-weight:700;}
 .bible-subtitle{font-size:13px;font-weight:700;color:#7b5530;margin:12px 0 4px;padding-left:32px;}
 
@@ -746,13 +757,13 @@ body.device-desktop .container{max-width:1100px;}
 #page-bible.active .bible-fab{display:flex;}
 
 .bible-bottom-toolbar{
-  background:#fff;border-top:1px solid #eee;
+  background:#fff;border-top:1px solid var(--stone);
   padding:10px 16px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
   display:flex;align-items:center;justify-content:space-between;
   gap:8px;flex-shrink:0;
 }
 .bible-nav-btn{
-  border:1.5px solid #e0ddd5;background:#fff;color:var(--ink);
+  border:1.5px solid var(--stone);background:#fff;color:var(--ink);
   border-radius:24px;padding:9px 18px;font-size:14px;font-weight:600;
   cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;transition:all .15s;
 }
@@ -1069,23 +1080,27 @@ body.device-desktop .container{max-width:1100px;}
 <!-- ══ PAGE: 敬拜 ══ -->
 <div class="page" id="page-worship">
   <div class="worship-page-wrap">
-    <div class="worship-header-section">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div>
-          <div class="worship-main-title">敬拜排班</div>
-          <div class="worship-main-sub">同心敬拜 · 荣耀归主</div>
-          <div class="worship-title-line"></div>
+    <!-- App Bar (Bible style) -->
+    <div class="worship-appbar">
+      <div class="worship-appbar-left">
+        <div class="worship-appbar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;padding-top:4px;">
-          <button class="worship-download-btn" onclick="downloadWorshipMonth()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            下载本月总单
-          </button>
-          <div style="display:flex;gap:6px;">
-            <button class="worship-download-btn worship-manage-only" onclick="openSongLibrary()" style="font-size:12px;padding:7px 10px;">诗歌库</button>
-            <button class="worship-download-btn worship-manage-only" onclick="openWorshipEdit()" style="font-size:12px;padding:7px 10px;background:var(--sage);color:#fff;border-color:var(--sage);">编辑</button>
-          </div>
-        </div>
+        <span class="worship-appbar-title">敬拜排班</span>
+      </div>
+      <div class="worship-appbar-right">
+        <button class="worship-appbar-btn" onclick="downloadWorshipMonth()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          下载
+        </button>
+        <button class="worship-appbar-btn worship-manage-only" onclick="openSongLibrary()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          诗歌库
+        </button>
+        <button class="worship-appbar-btn worship-manage-only" onclick="openWorshipEdit()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          编辑
+        </button>
       </div>
     </div>
     <div class="worship-date-tabs" id="worshipDateTabs"></div>
@@ -1349,16 +1364,7 @@ body.device-desktop .container{max-width:1100px;}
   <div class="bible-reading-area">
     <div class="bible-chapter-header">
       <div class="bible-current-title" id="bibleCurrentTitle">约翰福音 3 章</div>
-      <div class="bible-chapter-tools">
-        <button class="bible-tool-btn" onclick="">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-          朗读
-        </button>
-        <button class="bible-tool-btn" onclick="">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-          设置
-        </button>
-      </div>
+
     </div>
     <div class="bible-chapter-divider">✛</div>
     <div class="bible-result-list" id="bibleResultList"></div>
@@ -1372,15 +1378,8 @@ body.device-desktop .container{max-width:1100px;}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
       上一章
     </button>
-    <div class="bible-font-controls">
-      <button class="bible-font-btn" onclick="adjustBibleFont(-1)">A-</button>
-      <button class="bible-font-btn current">A</button>
-      <button class="bible-font-btn" onclick="adjustBibleFont(1)">A+</button>
-    </div>
-    <button class="bible-night-btn" onclick="toggleBibleNight()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      夜间
-    </button>
+
+
     <button class="bible-nav-btn" id="bibleNextBtn" onclick="goBibleChapter(1)">
       下一章
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1601,7 +1600,7 @@ body.device-desktop .container{max-width:1100px;}
     <div class="sheet-title">📅 聚会信息设置<span class="sheet-close" onclick="closeSheet('meetingSetupSheet')">✕</span></div>
 
     <!-- 两个 Tab -->
-    <div style="display:flex;gap:0;margin-bottom:16px;background:#f5f3ee;border-radius:12px;padding:3px;">
+    <div style="display:flex;gap:0;margin-bottom:16px;background:var(--parchment);border-radius:12px;padding:3px;">
       <button id="msTab1" onclick="switchMeetingSetupTab(1)"
         style="flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'Noto Sans SC',sans-serif;cursor:pointer;transition:all .15s;background:var(--sage);color:#fff;">
         🎤 证道（按月）
@@ -1714,9 +1713,9 @@ body.device-desktop .container{max-width:1100px;}
 <script>
 /* 圣经数据从本地 TXT 文件异步加载 */
 window.LOCAL_BIBLE = null;
-window.BIBLE_LOAD_PROMISE = fetch('./bible.txt')
+window.BIBLE_LOAD_PROMISE = fetch('./cmn-cu89s_vpl.txt')
   .then(r => {
-    if (!r.ok) throw new Error('bible.txt not found');
+    if (!r.ok) throw new Error('cmn-cu89s_vpl.txt not found');
     return r.text();
   })
   .then(text => {
@@ -3310,7 +3309,7 @@ function renderWorshipPage(){
     <div class="worship-info-row">
       <div class="worship-info-card">
         <div class="worship-info-label">本周证道</div>
-        <div class="worship-info-value">${escapeHtml(info.sermon||'待填写')} <span style="font-size:13px;font-weight:400;color:#999;">${info.sermon&&info.sermon!=='待填写'?'牧师':''}</span>${sermonIcon}</div>
+        <div class="worship-info-value">${escapeHtml(info.sermon||'待填写')} <span style="font-size:13px;font-weight:400;color:#999;">${info.sermon&&info.sermon!=='待填写'?'弟兄':''}</span>${sermonIcon}</div>
       </div>
       <div class="worship-info-card">
         <div class="worship-info-label">本周主题</div>
@@ -4097,7 +4096,7 @@ function openAttMoreMenu(){
   sheet.innerHTML=`<div style="background:#fff;border-radius:24px 24px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;">
     <div style="font-weight:700;font-size:16px;margin-bottom:14px;font-family:'Noto Serif SC',serif;">更多操作</div>
     ${items.map((it,i)=>`<button data-idx="${i}" style="display:block;width:100%;text-align:left;padding:13px 0;border:none;background:none;font-size:15px;font-family:'Noto Sans SC',sans-serif;cursor:pointer;border-bottom:1px solid #f0ede6;">${it.label}</button>`).join('')}
-    <button id="_attMoreClose" style="margin-top:12px;display:block;width:100%;padding:12px;border:none;background:#f5f3ee;border-radius:12px;font-size:14px;font-family:'Noto Sans SC',sans-serif;cursor:pointer;font-weight:600;">取消</button>
+    <button id="_attMoreClose" style="margin-top:12px;display:block;width:100%;padding:12px;border:none;background:var(--parchment);border-radius:12px;font-size:14px;font-family:'Noto Sans SC',sans-serif;cursor:pointer;font-weight:600;">取消</button>
   </div>`;
   document.body.appendChild(sheet);
   sheet.querySelector('#_attMoreClose').onclick=()=>sheet.remove();
