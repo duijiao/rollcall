@@ -2981,48 +2981,6 @@ async function copyMusicShareLink() {
     showToast(url);
   }
 }
-// 是否运行在微信自带的浏览器里
-const isInWeChat = /MicroMessenger/i.test(navigator.userAgent || '');
-
-function shareMusicTo(target) {
-  const s = musicShareSong;
-  if (!s) return;
-  const url = getMusicShareUrl(s);
-  const text = `${s.title} - 来自诗歌库`;
-
-  // 已经在微信自带浏览器里打开时：网页没办法用代码直接弹出微信的
-  // "发送给朋友"面板（这需要认证过的公众号 + 后端签名支持的 JS-SDK），
-  // 唯一真实可行的路径是引导用户点右上角的"⋯"，用微信自己的原生分享入口。
-  // 这里顺手把链接复制好，万一分享出去的预览卡片打不开，对方也能直接粘贴链接。
-  if (isInWeChat && (target === 'wechat' || target === 'moments')) {
-    copyMusicShareLink();
-    showToast(target === 'moments'
-      ? '请点击右上角「⋯」，选择「分享到朋友圈」'
-      : '请点击右上角「⋯」，选择「发送给朋友」');
-    return;
-  }
-
-  // 不在微信里：优先用系统自带的分享面板（手机上通常都会列出"微信"，
-  // 用户点一下就能选具体的好友分享，这是目前网页能做到的最接近原生的体验）
-  if (navigator.share) {
-    navigator.share({ title: s.title, text, url }).catch(() => {});
-    return;
-  }
-
-  // 桌面浏览器等没有分享面板的环境：退回到复制链接
-  const labels = { wechat: '微信', moments: '朋友圈', qq: 'QQ' };
-  copyMusicShareLink();
-  showToast(`已复制链接，请打开${labels[target] || ''}粘贴分享，或截图这张卡片`);
-}
-function moreMusicShareOptions() {
-  const s = musicShareSong;
-  if (!s) return;
-  if (navigator.share) {
-    navigator.share({ title: s.title, url: getMusicShareUrl(s) }).catch(() => {});
-  } else {
-    copyMusicShareLink();
-  }
-}
 // 保存图片：直接下载当前调的谱子图片
 function saveMusicShareImage() {
   const s = musicShareSong;
