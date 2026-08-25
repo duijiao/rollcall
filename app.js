@@ -251,6 +251,7 @@ function normalizeSongLibrary(raw) {
       band: (item?.band || '').trim(),
       songbook: (item?.songbook || '').trim(),
       lyrics: item?.lyrics || '',
+      lyricsLrc: item?.lyricsLrc || '',
       keys,
       music,
       lastPlayedAt: item?.lastPlayedAt || null,
@@ -274,6 +275,7 @@ function ensureSongInLibrary(title, src) {
     band: '',
     songbook: '',
     lyrics: '',
+    lyricsLrc: '',
     keys: src ? [{ id: genSongLibId(), label: '', src }] : [],
     music: [],
     lastPlayedAt: null,
@@ -1099,6 +1101,7 @@ function updateAdminUI(){
   const b=document.getElementById('addShiftBtn'); if(b) b.style.display=isAdmin?'flex':'none';
   const me=document.getElementById('adminMonthlyEditBtn'); if(me) me.style.display=isAdmin?'flex':'none';
   document.querySelectorAll('.upload-song-btn').forEach(el=>el.classList.toggle('show',isAdmin));
+  if (songLibDetailCurrent) renderSongLibLrc();
   document.querySelectorAll('.sermon-edit-btn').forEach(el=>el.classList.toggle('show',isAdmin));
   updateLeaveBadge();
   updateSongLibImportHint();
@@ -1947,6 +1950,7 @@ function openSongLibDetail(id){
   renderSongLibDetailKeyChips();
   renderSongLibDetailThumb();
   renderSongLibLyrics();
+  renderSongLibLrc();
   const weeks = findSongUsageWeeks(s.title);
   const usageList = document.getElementById('songLibUsageList');
   usageList.innerHTML = weeks.length
@@ -2543,6 +2547,8 @@ async function submitMusicLinkEdit() {
 // ── Now Playing：整屏音乐播放界面（歌谱 + 播放控制）───────
 // ══════════════════════════════════════════════════════════
 let nowPlayingSong = null;   // 当前展示的歌单库记录
+let nowPlayingLrcLines = []; // 当前歌曲解析后的动态歌词行 [{time, text}]
+let nowPlayingLrcActiveIndex = -1;
 let nowPlayingKeyIndex = 0;  // 当前展示的"调"下标
 let nowPlayingSeeking = false; // 用户正在拖动进度条时，暂停自动刷新，避免打架
 
@@ -2605,8 +2611,12 @@ function renderNowPlaying() {
   tags.push(`<span class="np-tag-chip static">简谱</span>`);
   document.getElementById('npTagsRow').innerHTML = tags.join('');
   const lyricsLines = (s.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
-  document.getElementById('npLyricsPreview').innerHTML = lyricsLines.length
-    ? lyricsLines.slice(0, 2).map(l => `<div>${escapeHtml(l)}</div>`).join('')
+  nowPlayingLrcLines = parseLrc(s.lyricsLrc);
+  nowPlayingLrcActiveIndex = -1;
+  const lrcTexts = nowPlayingLrcLines.map(l => l.text).filter(Boolean);
+  const previewSource = lrcTexts.length ? lrcTexts : lyricsLines;
+  document.getElementById('npLyricsPreview').innerHTML = previewSource.length
+    ? previewSource.slice(0, 2).map(l => `<div>${escapeHtml(l)}</div>`).join('')
     : `<div class="np-lyrics-preview-empty">暂无歌词，点击"歌词"添加</div>`;
   renderNowPlayingLyricsPanel();
   renderNowPlayingTransposePanel();
@@ -2672,6 +2682,7 @@ function updateNowPlayingProgress() {
   slider.value = Math.round((el.currentTime / el.duration) * 1000);
   if (curEl) curEl.textContent = formatPlayTime(el.currentTime);
   if (durEl) durEl.textContent = formatPlayTime(el.duration);
+  updateNowPlayingLrcHighlight();
 }
 function formatPlayTime(sec) {
   sec = Math.max(0, Math.floor(sec || 0));
@@ -2716,9 +2727,54 @@ function renderNowPlayingLyricsPanel() {
   const s = nowPlayingSong;
   const body = document.getElementById('npLyricsPanelBody');
   if (!s || !body) return;
+  if (nowPlayingLrcLines.length) {
+    body.innerHTML = `<div class="np-lrc-list" id="npLrcList">` +
+      nowPlayingLrcLines.map((l, i) => `<div class="np-lrc-line" onclick="seekNowPlayingToLrcLine(${i})">${escapeHtml(l.text || '♪')}</div>`).join('') +
+      `</div>`;
+    nowPlayingLrcActiveIndex = -1;
+    updateNowPlayingLrcHighlight(true);
+    return;
+  }
   body.innerHTML = s.lyrics
     ? `<div class="np-lyrics-full">${escapeHtml(s.lyrics)}</div>`
     : `<div class="np-lyrics-preview-empty">这首诗歌还没有录入歌词，可前往歌单库详情页添加</div>`;
+}
+// 点击某一行动态歌词：跳转播放进度到该行的时间戳
+function seekNowPlayingToLrcLine(i) {
+  const line = nowPlayingLrcLines[i];
+  if (!line || !globalAudioEl || musicPlayerSongTitle !== nowPlayingSong?.title) return;
+  globalAudioEl.currentTime = line.time;
+  updateNowPlayingProgress();
+}
+// 根据当前播放进度，高亮对应的动态歌词行，并在歌词面板打开时自动滚动到可见区域；
+// 同时把当前行（及下一行）同步到收起状态下的歌词预览区
+function updateNowPlayingLrcHighlight(force) {
+  if (!nowPlayingLrcLines.length) return;
+  const el = globalAudioEl;
+  const isCurrentTrack = el && loadedAudioLinkId && musicPlayerSongTitle === nowPlayingSong?.title;
+  const t = isCurrentTrack ? el.currentTime : 0;
+  let idx = -1;
+  for (let i = 0; i < nowPlayingLrcLines.length; i++) {
+    if (nowPlayingLrcLines[i].time <= t + 0.05) idx = i; else break;
+  }
+  if (idx === nowPlayingLrcActiveIndex && !force) return;
+  nowPlayingLrcActiveIndex = idx;
+  const list = document.getElementById('npLrcList');
+  if (list) {
+    [...list.children].forEach((child, i) => child.classList.toggle('active', i === idx));
+    const activeEl = idx >= 0 ? list.children[idx] : null;
+    const panel = document.getElementById('npLyricsPanel');
+    if (activeEl && panel && panel.classList.contains('show')) {
+      activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }
+  const previewEl = document.getElementById('npLyricsPreview');
+  if (previewEl) {
+    const cur = idx >= 0 ? nowPlayingLrcLines[idx].text : (nowPlayingLrcLines[0]?.text || '');
+    const next = nowPlayingLrcLines[idx + 1]?.text || '';
+    previewEl.innerHTML = `<div class="np-lrc-preview-cur">${escapeHtml(cur || '♪')}</div>` +
+      (next ? `<div class="np-lrc-preview-next">${escapeHtml(next)}</div>` : '');
+  }
 }
 function openTransposePanel() {
   const panel = document.getElementById('npTransposePanel');
@@ -2870,7 +2926,7 @@ function renderMusicShareCard() {
   const qrCanvas = document.getElementById('msCardQr');
   if (qrCanvas && typeof QRCode !== 'undefined') {
     QRCode.toCanvas(qrCanvas, getMusicShareUrl(s), {
-      width: 96, margin: 0, color: { dark: '#1a3d33', light: '#ffffff00' }
+      width: 96, margin: 0, color: { dark: '#1a3d33', light: '#ffffff' }
     }, () => {});
   }
 }
@@ -2938,6 +2994,36 @@ function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
   lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
   return lines.length;
 }
+// 在给定矩形范围内绘制波浪装饰（仿分享卡片底部绿色波浪区）
+function drawShareWave(ctx, x, y, w, h) {
+  const wave = (yTop, amp, phase, fill, alpha) => {
+    ctx.beginPath();
+    ctx.moveTo(x, y + yTop);
+    ctx.bezierCurveTo(x + w * 0.22, y + yTop - amp + phase, x + w * 0.38, y + yTop + amp, x + w * 0.62, y + yTop - amp * 0.4);
+    ctx.bezierCurveTo(x + w * 0.8, y + yTop - amp + phase * 0.6, x + w * 0.92, y + yTop + amp * 0.6, x + w, y + yTop - amp * 0.3);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.globalAlpha = alpha; ctx.fillStyle = fill; ctx.fill(); ctx.globalAlpha = 1;
+  };
+  wave(h * 0.28, 16, 10, '#cdeadd', 0.55);
+  wave(h * 0.48, 14, -8, '#a9dcc4', 0.6);
+  wave(h * 0.68, 12, 6, '#1D9E75', 1);
+}
+// 简易叶子图标
+function drawLeafIcon(ctx, cx, cy, size, color, alpha) {
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(-0.2); ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.moveTo(0, size);
+  ctx.quadraticCurveTo(size * 0.9, size * 0.9, size * 0.9, 0);
+  ctx.quadraticCurveTo(size * 0.9, size * 0.9, 0, size);
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, size); ctx.lineTo(size * 0.75, size * 0.25); ctx.stroke();
+  ctx.restore(); ctx.globalAlpha = 1;
+}
 async function saveMusicSharePoster() {
   const s = musicShareSong;
   if (!s) return;
@@ -2956,25 +3042,31 @@ async function saveMusicSharePoster() {
   bgGrad.addColorStop(0, '#eef7f2'); bgGrad.addColorStop(1, '#ffffff');
   ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
 
-  // 卡片
-  const cardX = 32, cardY = 40, cardW = W - 64, cardH = H - 80;
-  rr(ctx, cardX, cardY, cardW, cardH, 22, '#ffffff');
+  // 卡片（圆角裁剪，底部波浪区在裁剪范围内绘制）
+  const cardX = 32, cardY = 40, cardW = W - 64, cardH = H - 80, cardR = 26;
+  ctx.save();
+  rr(ctx, cardX, cardY, cardW, cardH, cardR, '#ffffff');
+  roundRectPath(ctx, cardX, cardY, cardW, cardH, cardR);
+  ctx.clip();
 
   // 品牌行
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  rr(ctx, cardX + 24, cardY + 24, 30, 30, 8, primary);
-  ctx.fillStyle = '#fff'; ctx.font = '16px PingFang SC,sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('♪', cardX + 24 + 15, cardY + 24 + 21);
+  rr(ctx, cardX + 26, cardY + 26, 32, 32, 9, primary);
+  ctx.fillStyle = '#fff'; ctx.font = '17px PingFang SC,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('♪', cardX + 26 + 16, cardY + 26 + 22);
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 16px PingFang SC,sans-serif';
-  ctx.fillText('诗歌库', cardX + 64, cardY + 40);
-  ctx.fillStyle = '#999'; ctx.font = '11px PingFang SC,sans-serif';
-  ctx.fillText('让敬拜更简单', cardX + 64, cardY + 56);
-  ctx.textAlign = 'right'; ctx.font = 'italic bold 17px Georgia,serif'; ctx.fillStyle = 'rgba(29,158,117,0.28)';
-  ctx.fillText('Worship', cardX + cardW - 24, cardY + 44);
+  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 17px PingFang SC,sans-serif';
+  ctx.fillText('诗歌库', cardX + 68, cardY + 43);
+  ctx.fillStyle = '#999'; ctx.font = '11.5px PingFang SC,sans-serif';
+  ctx.fillText('让敬拜更简单', cardX + 68, cardY + 60);
+  ctx.save();
+  ctx.textAlign = 'right'; ctx.font = 'italic bold 20px Georgia,serif'; ctx.fillStyle = 'rgba(29,158,117,0.22)';
+  ctx.translate(cardX + cardW - 26, cardY + 50); ctx.rotate(-0.05);
+  ctx.fillText('Worship', 0, 0);
+  ctx.restore();
 
   // 歌曲缩略图 + 标题
-  const thumbX = cardX + 24, thumbY = cardY + 90, thumbSize = 108;
+  const thumbX = cardX + 26, thumbY = cardY + 94, thumbSize = 108;
   const img = await loadImageSafe(key?.src);
   if (img) {
     ctx.save();
@@ -2987,46 +3079,54 @@ async function saveMusicSharePoster() {
     rr(ctx, thumbX, thumbY, thumbSize, thumbSize, 12, '#f2f2f0');
   }
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 21px PingFang SC,sans-serif';
-  wrapCanvasText(ctx, s.title, thumbX + thumbSize + 16, thumbY + 30, cardW - thumbSize - 64, 26, 2);
-  ctx.fillStyle = '#999'; ctx.font = '13px PingFang SC,sans-serif';
-  ctx.fillText(s.band || s.songbook || '诗歌库', thumbX + thumbSize + 16, thumbY + 70);
-  let tagX = thumbX + thumbSize + 16;
+  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 23px PingFang SC,sans-serif';
+  wrapCanvasText(ctx, s.title, thumbX + thumbSize + 18, thumbY + 32, cardW - thumbSize - 70, 28, 2);
+  ctx.fillStyle = '#999'; ctx.font = '13.5px PingFang SC,sans-serif';
+  ctx.fillText(s.band || s.songbook || '诗歌库', thumbX + thumbSize + 18, thumbY + 74);
+  let tagX = thumbX + thumbSize + 18;
   [`${s.keys.length || 1}个调`, '简谱'].forEach(t => {
     ctx.font = '11px PingFang SC,sans-serif';
-    const tw = ctx.measureText(t).width + 18;
-    rr(ctx, tagX, thumbY + 82, tw, 20, 10, '#e8f5f0');
+    const tw = ctx.measureText(t).width + 20;
+    rr(ctx, tagX, thumbY + 86, tw, 22, 11, '#e8f5f0');
     ctx.fillStyle = primary; ctx.textAlign = 'center';
-    ctx.fillText(t, tagX + tw / 2, thumbY + 96);
+    ctx.fillText(t, tagX + tw / 2, thumbY + 101);
     ctx.textAlign = 'left';
     tagX += tw + 8;
   });
 
-  // 歌词引用
-  const quoteY = thumbY + thumbSize + 46;
-  ctx.strokeStyle = '#d0ede4'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(cardX + 24, quoteY - 24); ctx.lineTo(cardX + 24, quoteY + 40); ctx.stroke();
-  ctx.fillStyle = '#444'; ctx.font = '15px PingFang SC,sans-serif';
+  // 歌词引用（大号引号 + 歌词两行，仿卡片样式）
+  const quoteMarkY = thumbY + thumbSize + 56;
+  ctx.fillStyle = '#d0ede4'; ctx.font = 'bold 46px Georgia,serif';
+  ctx.fillText('\u201C', cardX + 24, quoteMarkY);
+  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 17px PingFang SC,sans-serif';
   const lyricsLines = (s.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
   const quoteText = lyricsLines.length ? lyricsLines.slice(0, 2).join('   ') : '愿这首诗歌，带给你安慰与力量';
-  wrapCanvasText(ctx, quoteText, cardX + 44, quoteY, cardW - 68, 26, 2);
+  wrapCanvasText(ctx, quoteText, cardX + 26, quoteMarkY + 30, cardW - 52, 32, 2);
+
+  // 底部波浪区
+  const waveH = 168;
+  const waveY = cardY + cardH - waveH;
+  drawShareWave(ctx, cardX, waveY, cardW, waveH);
+  drawLeafIcon(ctx, cardX + cardW - 56, waveY + 34, 20, '#ffffff', 0.65);
 
   // 二维码
-  const qrSize = 108;
+  const qrSize = 96;
   const qrCanvasEl = document.createElement('canvas');
   await new Promise(resolve => {
     if (typeof QRCode === 'undefined') { resolve(); return; }
     QRCode.toCanvas(qrCanvasEl, getMusicShareUrl(s), { width: qrSize, margin: 0, color: { dark: '#1a3d33', light: '#ffffff' } }, () => resolve());
   });
-  const footerY = cardY + cardH - 130;
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.setLineDash([4, 4]);
-  ctx.beginPath(); ctx.moveTo(cardX + 24, footerY); ctx.lineTo(cardX + cardW - 24, footerY); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = '#333'; ctx.font = 'bold 14px PingFang SC,sans-serif';
-  ctx.fillText('来自 诗歌库', cardX + 24, footerY + 40);
-  ctx.fillStyle = '#aaa'; ctx.font = '11px PingFang SC,sans-serif';
-  ctx.fillText('海量诗歌，轻松敬拜', cardX + 24, footerY + 58);
-  if (qrCanvasEl.width) ctx.drawImage(qrCanvasEl, cardX + cardW - 24 - qrSize, footerY + 12, qrSize, qrSize);
+  const footerTextY = cardY + cardH - 46;
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 15px PingFang SC,sans-serif';
+  ctx.fillText('来自 诗歌库', cardX + 24, footerTextY);
+  ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.font = '12px PingFang SC,sans-serif';
+  ctx.fillText('海量诗歌，轻松敬拜', cardX + 24, footerTextY + 20);
+  const qrBoxPad = 7, qrBoxSize = qrSize + qrBoxPad * 2;
+  const qrBoxX = cardX + cardW - 24 - qrBoxSize, qrBoxY = cardY + cardH - 22 - qrBoxSize;
+  rr(ctx, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 10, '#ffffff');
+  if (qrCanvasEl.width) ctx.drawImage(qrCanvasEl, qrBoxX + qrBoxPad, qrBoxY + qrBoxPad, qrSize, qrSize);
+
+  ctx.restore();
 
   const a = document.createElement('a');
   a.download = `${sanitizeFileName(s.title)}-分享海报.png`;
@@ -3051,6 +3151,26 @@ function checkSongShareLinkFromUrl() {
 }
 
 let songLibLyricsEditing = false;
+// 解析 LRC 格式动态歌词：[mm:ss.xx]歌词内容，支持一行多个时间戳
+function parseLrc(text) {
+  if (!text) return [];
+  const timeTag = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
+  const result = [];
+  text.split('\n').forEach(line => {
+    const tags = [...line.matchAll(timeTag)];
+    if (!tags.length) return;
+    const content = line.replace(timeTag, '').trim();
+    tags.forEach(m => {
+      const min = parseInt(m[1], 10) || 0;
+      const sec = parseInt(m[2], 10) || 0;
+      const msRaw = m[3] || '0';
+      const ms = parseInt(msRaw.padEnd(3, '0').slice(0, 3), 10) || 0;
+      result.push({ time: min * 60 + sec + ms / 1000, text: content });
+    });
+  });
+  result.sort((a, b) => a.time - b.time);
+  return result;
+}
 function renderSongLibLyrics(){
   const s = songLibDetailCurrent;
   const actionsEl = document.getElementById('songLibLyricsActions');
@@ -3101,6 +3221,76 @@ function downloadCurrentSongLibLyrics(){
   if (!s || !s.lyrics) return;
   const content = `${s.title}\n\n${s.lyrics}\n`;
   downloadTextFile(content, `${sanitizeFileName(s.title)}-歌词.txt`);
+}
+
+// ── 动态歌词（LRC 时间轴）：管理员在歌单库详情页录入，播放时逐行同步高亮 ──
+let songLibLrcEditing = false;
+function renderSongLibLrc(){
+  const s = songLibDetailCurrent;
+  const sectionEl = document.getElementById('songLibLrcSection');
+  const actionsEl = document.getElementById('songLibLrcActions');
+  const bodyEl = document.getElementById('songLibLrcBody');
+  if (!sectionEl || !actionsEl || !bodyEl) return;
+  if (!s || !isAdmin) { sectionEl.style.display = 'none'; return; }
+  sectionEl.style.display = '';
+  if (songLibLrcEditing) {
+    actionsEl.innerHTML = '';
+    bodyEl.innerHTML = `<div class="song-lib-lyrics-edit">
+      <textarea id="songLibLrcTextarea" placeholder="逐行输入 LRC 格式歌词，如：&#10;[00:00.72]吹起复兴的风&#10;[00:04.20]我们的神&#10;[00:07.50]来点燃这地 我们呼求">${escapeHtml(s.lyricsLrc)}</textarea>
+      <div class="song-lib-lyrics-edit-actions">
+        <button class="btn-cancel" onclick="cancelLrcEdit()">取消</button>
+        <button class="btn-save" onclick="saveLrcEdit()">保存</button>
+      </div>
+    </div>`;
+    return;
+  }
+  const parsed = parseLrc(s.lyricsLrc);
+  actionsEl.innerHTML = s.lyricsLrc
+    ? `<button class="song-lib-lyrics-link-btn" onclick="openLrcEdit()"><i class="ti ti-edit"></i>编辑</button>
+       <button class="song-lib-lyrics-link-btn" style="color:#e74c3c" onclick="clearLrcEdit()"><i class="ti ti-trash"></i>清除</button>`
+    : `<button class="song-lib-lyrics-link-btn" onclick="openLrcEdit()"><i class="ti ti-plus"></i>添加</button>`;
+  bodyEl.innerHTML = s.lyricsLrc
+    ? `<div class="song-lib-lyrics-preview">已设置 ${parsed.length} 行同步歌词，播放时会随进度逐行高亮显示</div>`
+    : `<div class="song-lib-lyrics-empty">还没有设置动态歌词。录入 LRC 格式的时间轴歌词后，播放页会随播放进度逐行同步高亮</div>`;
+}
+function openLrcEdit(){
+  if (!isAdmin) return;
+  songLibLrcEditing = true;
+  renderSongLibLrc();
+  const ta = document.getElementById('songLibLrcTextarea');
+  if (ta) ta.focus();
+}
+function cancelLrcEdit(){
+  songLibLrcEditing = false;
+  if (songLibDetailCurrent) renderSongLibLrc();
+}
+async function saveLrcEdit(){
+  const s = songLibDetailCurrent;
+  if (!s || !isAdmin) return;
+  const ta = document.getElementById('songLibLrcTextarea');
+  const raw = (ta?.value || '').trim();
+  if (raw && !parseLrc(raw).length) {
+    showToast('⚠️ 未识别到时间戳，格式应为 [分:秒.毫秒]歌词，如 [00:00.72]吹起复兴的风');
+    return;
+  }
+  s.lyricsLrc = raw;
+  persistSongLibrary();
+  songLibLrcEditing = false;
+  renderSongLibLrc();
+  showToast('✅ 动态歌词已保存');
+  if (nowPlayingSong?.id === s.id) { nowPlayingLrcLines = parseLrc(s.lyricsLrc); nowPlayingLrcActiveIndex = -1; renderNowPlayingLyricsPanel(); }
+  await syncSongLibraryToRemote();
+}
+async function clearLrcEdit(){
+  const s = songLibDetailCurrent;
+  if (!s || !isAdmin) return;
+  s.lyricsLrc = '';
+  persistSongLibrary();
+  songLibLrcEditing = false;
+  renderSongLibLrc();
+  showToast('✅ 动态歌词已清除');
+  if (nowPlayingSong?.id === s.id) { nowPlayingLrcLines = []; nowPlayingLrcActiveIndex = -1; renderNowPlayingLyricsPanel(); }
+  await syncSongLibraryToRemote();
 }
 
 
@@ -4108,6 +4298,14 @@ function rr(ctx,x,y,w,h,r,fill){
   ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
   ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
+}
+// 只构建圆角矩形路径（不填充），用于 ctx.clip()
+function roundRectPath(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
 }
 
 // ── Init ──────────────────────────────────────────────

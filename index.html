@@ -779,6 +779,13 @@
       </div>
       <div id="songLibLyricsBody"></div>
     </div>
+    <div class="song-lib-lyrics-section" id="songLibLrcSection" style="display:none">
+      <div class="song-lib-lyrics-header">
+        <span class="song-lib-lyrics-title">动态歌词（LRC 时间轴，仅管理员可设置）</span>
+        <div class="song-lib-lyrics-actions" id="songLibLrcActions"></div>
+      </div>
+      <div id="songLibLrcBody"></div>
+    </div>
     <div class="song-lib-usage-title">使用记录</div>
     <div class="song-lib-usage-list" id="songLibUsageList"></div>
     <div class="drawer-actions" id="songLibDetailActions"></div>
@@ -951,31 +958,44 @@
   </div>
   <div class="ms-body">
     <div class="ms-card" id="msCard">
-      <div class="ms-card-brand">
-        <div class="ms-card-brand-left">
-          <div class="ms-card-brand-icon"><i class="ti ti-music"></i></div>
-          <div>
-            <div class="ms-card-brand-name">诗歌库</div>
-            <div class="ms-card-brand-tag">让敬拜更简单</div>
+      <div class="ms-card-top">
+        <div class="ms-card-brand">
+          <div class="ms-card-brand-left">
+            <div class="ms-card-brand-icon"><i class="ti ti-music"></i></div>
+            <div>
+              <div class="ms-card-brand-name">诗歌库</div>
+              <div class="ms-card-brand-tag">让敬拜更简单</div>
+            </div>
+          </div>
+          <div class="ms-card-brand-watermark">Worship</div>
+        </div>
+        <div class="ms-card-song-row">
+          <div class="ms-card-thumb" id="msCardThumb"></div>
+          <div class="ms-card-song-info">
+            <div class="ms-card-song-title" id="msCardTitle"></div>
+            <div class="ms-card-song-band" id="msCardBand"></div>
+            <div class="ms-card-song-tags" id="msCardTags"></div>
           </div>
         </div>
-        <div class="ms-card-brand-watermark">Worship</div>
-      </div>
-      <div class="ms-card-song-row">
-        <div class="ms-card-thumb" id="msCardThumb"></div>
-        <div class="ms-card-song-info">
-          <div class="ms-card-song-title" id="msCardTitle"></div>
-          <div class="ms-card-song-band" id="msCardBand"></div>
-          <div class="ms-card-song-tags" id="msCardTags"></div>
+        <div class="ms-card-quote-wrap">
+          <span class="ms-card-quote-mark">&ldquo;</span>
+          <div class="ms-card-quote" id="msCardQuote"></div>
         </div>
       </div>
-      <div class="ms-card-quote" id="msCardQuote"></div>
-      <div class="ms-card-footer">
-        <div class="ms-card-footer-text">
-          <div class="ms-card-footer-from">来自 诗歌库</div>
-          <div class="ms-card-footer-sub">海量诗歌，轻松敬拜</div>
+      <div class="ms-card-wave">
+        <svg class="ms-card-wave-svg" viewBox="0 0 500 210" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,60 C90,10 160,95 260,55 C350,20 430,70 500,35 L500,210 L0,210 Z" fill="#cdeadd" opacity="0.55"></path>
+          <path d="M0,100 C80,150 170,60 260,100 C360,145 420,80 500,105 L500,210 L0,210 Z" fill="#a9dcc4" opacity="0.6"></path>
+          <path d="M0,140 C100,175 190,120 280,145 C370,170 430,130 500,150 L500,210 L0,210 Z" fill="var(--primary)"></path>
+        </svg>
+        <i class="ti ti-leaf ms-card-leaf"></i>
+        <div class="ms-card-footer">
+          <div class="ms-card-footer-text">
+            <div class="ms-card-footer-from">来自 诗歌库</div>
+            <div class="ms-card-footer-sub">海量诗歌，轻松敬拜</div>
+          </div>
+          <div class="ms-card-qr-box"><canvas class="ms-card-qr" id="msCardQr" width="96" height="96"></canvas></div>
         </div>
-        <canvas class="ms-card-qr" id="msCardQr" width="96" height="96"></canvas>
       </div>
     </div>
     <div class="ms-share-title">分享给</div>
