@@ -2755,7 +2755,7 @@ body.a11y-mode .toggle-switch input:checked ~ .toggle-thumb { transform: transla
   padding: 14px; margin: 10px 0 18px;
 }
 .np-sheet-img-wrap { width: 100%; border-radius: 10px; overflow: hidden; background: var(--bg-subtle-2); min-height: 160px; display: flex; align-items: center; justify-content: center; }
-.np-sheet-img-wrap img { width: 100%; display: block; cursor: zoom-in; }
+.np-sheet-img-wrap img { width: 78%; max-width: 320px; display: block; margin: 0 auto; cursor: zoom-in; }
 .np-sheet-placeholder { color: var(--border-soft); font-size: 40px; padding: 60px 0; }
 
 .np-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -2776,12 +2776,12 @@ body.a11y-mode .toggle-switch input:checked ~ .toggle-thumb { transform: transla
 .np-tag-chip.static { cursor: default; background: var(--bg-subtle); color: var(--text-3); }
 
 .np-lyrics-preview {
-  margin-top: 14px; font-size: 13.5px; line-height: 1.9; color: var(--text-2); cursor: pointer;
-  min-height: 44px;
+  margin-top: 14px; font-size: 15px; line-height: 1.85; color: var(--text-2); cursor: pointer;
+  min-height: 52px; text-align: center;
 }
 .np-lyrics-preview-empty { color: var(--text-4); font-size: 12.5px; }
-.np-lrc-preview-cur { font-weight: 700; color: var(--primary); }
-.np-lrc-preview-next { color: var(--text-3); margin-top: 2px; }
+.np-lrc-preview-cur { font-weight: 700; color: var(--primary); font-size: 17px; }
+.np-lrc-preview-next { color: var(--text-3); margin-top: 4px; font-size: 14px; }
 
 .np-progress-row { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
 .np-time { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; width: 34px; }
@@ -2859,7 +2859,7 @@ body.a11y-mode .toggle-switch input:checked ~ .toggle-thumb { transform: transla
 .np-queue-empty { color: var(--text-4); font-size: 12.5px; text-align: center; padding: 26px 0; }
 
 body.a11y-mode .np-song-title { font-size: 23px; }
-body.a11y-mode .np-lyrics-preview { font-size: 15px; }
+body.a11y-mode .np-lyrics-preview { font-size: 17px; }
 
 /* ══════════════════════════════════════════════════════════
    Share music page
@@ -2898,18 +2898,18 @@ body.a11y-mode .np-lyrics-preview { font-size: 15px; }
 .ms-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .ms-card-thumb i { color: var(--border-soft); font-size: 24px; }
 .ms-card-song-info { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
-.ms-card-song-title { font-size: 17px; font-weight: 700; color: var(--text-1); line-height: 1.3; }
+.ms-card-song-title { font-size: 18px; font-weight: 700; color: var(--text-1); line-height: 1.35; }
 .ms-card-song-band { font-size: 12.5px; color: var(--text-3); }
-.ms-card-song-tags { display: flex; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
+.ms-card-song-tags { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
 .ms-card-song-tags span { background: var(--primary-light); color: var(--primary); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
 
-.ms-card-quote-wrap { position: relative; padding: 2px 4px 26px; margin-bottom: 2px; }
+.ms-card-quote-wrap { position: relative; padding: 4px 4px 26px; margin-bottom: 2px; }
 .ms-card-quote-mark {
   display: block; font-size: 42px; line-height: 1; font-weight: 700; font-family: Georgia, serif;
   color: var(--primary-mid); margin-bottom: 4px;
 }
 .ms-card-quote {
-  font-size: 15.5px; font-weight: 600; line-height: 2.15; color: var(--text-1);
+  font-size: 16px; font-weight: 600; line-height: 2.2; color: var(--text-1);
 }
 .ms-card-quote div + div { margin-top: 2px; }
 

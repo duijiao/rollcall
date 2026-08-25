@@ -2971,172 +2971,35 @@ function saveMusicShareImage() {
   const ext = (key.src.split('?')[0].split('.').pop() || 'jpg').slice(0, 4);
   triggerFileDownload(key.src, `${sanitizeFileName(s.title)}.${/^[a-zA-Z0-9]+$/.test(ext) ? ext : 'jpg'}`);
 }
-// 保存海报：把整张分享卡片（含二维码）绘制到 canvas 上并导出为图片
-function loadImageSafe(url) {
-  return new Promise(resolve => {
-    if (!url) { resolve(null); return; }
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-}
-function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
-  const chars = String(text).split('');
-  let line = '', lines = [];
-  for (const ch of chars) {
-    const test = line + ch;
-    if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = ch; } else { line = test; }
-    if (lines.length >= maxLines) break;
-  }
-  if (line && lines.length < maxLines) lines.push(line);
-  lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
-  return lines.length;
-}
-// 在给定矩形范围内绘制波浪装饰（仿分享卡片底部绿色波浪区）
-function drawShareWave(ctx, x, y, w, h) {
-  const wave = (yTop, amp, phase, fill, alpha) => {
-    ctx.beginPath();
-    ctx.moveTo(x, y + yTop);
-    ctx.bezierCurveTo(x + w * 0.22, y + yTop - amp + phase, x + w * 0.38, y + yTop + amp, x + w * 0.62, y + yTop - amp * 0.4);
-    ctx.bezierCurveTo(x + w * 0.8, y + yTop - amp + phase * 0.6, x + w * 0.92, y + yTop + amp * 0.6, x + w, y + yTop - amp * 0.3);
-    ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x, y + h);
-    ctx.closePath();
-    ctx.globalAlpha = alpha; ctx.fillStyle = fill; ctx.fill(); ctx.globalAlpha = 1;
-  };
-  wave(h * 0.28, 16, 10, '#cdeadd', 0.55);
-  wave(h * 0.48, 14, -8, '#a9dcc4', 0.6);
-  wave(h * 0.68, 12, 6, '#1D9E75', 1);
-}
-// 简易叶子图标
-function drawLeafIcon(ctx, cx, cy, size, color, alpha) {
-  ctx.save();
-  ctx.translate(cx, cy); ctx.rotate(-0.2); ctx.globalAlpha = alpha;
-  ctx.beginPath();
-  ctx.moveTo(0, size);
-  ctx.quadraticCurveTo(size * 0.9, size * 0.9, size * 0.9, 0);
-  ctx.quadraticCurveTo(size * 0.9, size * 0.9, 0, size);
-  ctx.closePath();
-  ctx.fillStyle = color; ctx.fill();
-  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(0, size); ctx.lineTo(size * 0.75, size * 0.25); ctx.stroke();
-  ctx.restore(); ctx.globalAlpha = 1;
-}
+// 保存海报：直接把屏幕上正在显示的分享卡片（#msCard）原样截图导出，
+// 不再另外用 canvas 手工重画一遍——这样保证导出的海报跟你屏幕上看到的
+// 排版、字号、间距永远一致，以后卡片样式改了也不用同步维护两套代码
 async function saveMusicSharePoster() {
   const s = musicShareSong;
   if (!s) return;
-  showToast('海报生成中…');
-  const key = s.keys[nowPlayingSong?.id === s.id ? nowPlayingKeyIndex : 0] || s.keys[0] || null;
-  const dpr = window.devicePixelRatio || 1;
-  const W = 640, H = 900;
-  const canvas = document.getElementById('exportCanvas');
-  canvas.width = W * dpr; canvas.height = H * dpr;
-  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
-  const primary = settings ? settings.primaryColor : '#1D9E75';
-
-  // 背景
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, '#eef7f2'); bgGrad.addColorStop(1, '#ffffff');
-  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
-
-  // 卡片（圆角裁剪，底部波浪区在裁剪范围内绘制）
-  const cardX = 32, cardY = 40, cardW = W - 64, cardH = H - 80, cardR = 26;
-  ctx.save();
-  rr(ctx, cardX, cardY, cardW, cardH, cardR, '#ffffff');
-  roundRectPath(ctx, cardX, cardY, cardW, cardH, cardR);
-  ctx.clip();
-
-  // 品牌行
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  rr(ctx, cardX + 26, cardY + 26, 32, 32, 9, primary);
-  ctx.fillStyle = '#fff'; ctx.font = '17px PingFang SC,sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('♪', cardX + 26 + 16, cardY + 26 + 22);
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 17px PingFang SC,sans-serif';
-  ctx.fillText('诗歌库', cardX + 68, cardY + 43);
-  ctx.fillStyle = '#999'; ctx.font = '11.5px PingFang SC,sans-serif';
-  ctx.fillText('让敬拜更简单', cardX + 68, cardY + 60);
-  ctx.save();
-  ctx.textAlign = 'right'; ctx.font = 'italic bold 20px Georgia,serif'; ctx.fillStyle = 'rgba(29,158,117,0.22)';
-  ctx.translate(cardX + cardW - 26, cardY + 50); ctx.rotate(-0.05);
-  ctx.fillText('Worship', 0, 0);
-  ctx.restore();
-
-  // 歌曲缩略图 + 标题
-  const thumbX = cardX + 26, thumbY = cardY + 94, thumbSize = 108;
-  const img = await loadImageSafe(key?.src);
-  if (img) {
-    ctx.save();
-    rr(ctx, thumbX, thumbY, thumbSize, thumbSize, 12, '#f2f2f0'); ctx.clip();
-    const scale = Math.max(thumbSize / img.width, thumbSize / img.height);
-    const iw = img.width * scale, ih = img.height * scale;
-    ctx.drawImage(img, thumbX - (iw - thumbSize) / 2, thumbY - (ih - thumbSize) / 2, iw, ih);
-    ctx.restore();
-  } else {
-    rr(ctx, thumbX, thumbY, thumbSize, thumbSize, 12, '#f2f2f0');
+  if (typeof html2canvas === 'undefined') {
+    showToast('海报生成组件加载失败，请检查网络后重试');
+    return;
   }
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 23px PingFang SC,sans-serif';
-  wrapCanvasText(ctx, s.title, thumbX + thumbSize + 18, thumbY + 32, cardW - thumbSize - 70, 28, 2);
-  ctx.fillStyle = '#999'; ctx.font = '13.5px PingFang SC,sans-serif';
-  ctx.fillText(s.band || s.songbook || '诗歌库', thumbX + thumbSize + 18, thumbY + 74);
-  let tagX = thumbX + thumbSize + 18;
-  [`${s.keys.length || 1}个调`, '简谱'].forEach(t => {
-    ctx.font = '11px PingFang SC,sans-serif';
-    const tw = ctx.measureText(t).width + 20;
-    rr(ctx, tagX, thumbY + 86, tw, 22, 11, '#e8f5f0');
-    ctx.fillStyle = primary; ctx.textAlign = 'center';
-    ctx.fillText(t, tagX + tw / 2, thumbY + 101);
-    ctx.textAlign = 'left';
-    tagX += tw + 8;
-  });
-
-  // 歌词引用（大号引号 + 歌词两行，仿卡片样式）
-  const quoteMarkY = thumbY + thumbSize + 56;
-  ctx.fillStyle = '#d0ede4'; ctx.font = 'bold 46px Georgia,serif';
-  ctx.fillText('\u201C', cardX + 24, quoteMarkY);
-  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 17px PingFang SC,sans-serif';
-  const lyricsLines = (s.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
-  const quoteText = lyricsLines.length ? lyricsLines.slice(0, 2).join('   ') : '愿这首诗歌，带给你安慰与力量';
-  wrapCanvasText(ctx, quoteText, cardX + 26, quoteMarkY + 30, cardW - 52, 32, 2);
-
-  // 底部波浪区
-  const waveH = 168;
-  const waveY = cardY + cardH - waveH;
-  drawShareWave(ctx, cardX, waveY, cardW, waveH);
-  drawLeafIcon(ctx, cardX + cardW - 56, waveY + 34, 20, '#ffffff', 0.65);
-
-  // 二维码
-  const qrSize = 96;
-  const qrCanvasEl = document.createElement('canvas');
-  await new Promise(resolve => {
-    if (typeof QRCode === 'undefined') { resolve(); return; }
-    QRCode.toCanvas(qrCanvasEl, getMusicShareUrl(s), { width: qrSize, margin: 0, color: { dark: '#1a3d33', light: '#ffffff' } }, () => resolve());
-  });
-  const footerTextY = cardY + cardH - 46;
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 15px PingFang SC,sans-serif';
-  ctx.fillText('来自 诗歌库', cardX + 24, footerTextY);
-  ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.font = '12px PingFang SC,sans-serif';
-  ctx.fillText('海量诗歌，轻松敬拜', cardX + 24, footerTextY + 20);
-  const qrBoxPad = 7, qrBoxSize = qrSize + qrBoxPad * 2;
-  const qrBoxX = cardX + cardW - 24 - qrBoxSize, qrBoxY = cardY + cardH - 22 - qrBoxSize;
-  rr(ctx, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 10, '#ffffff');
-  if (qrCanvasEl.width) ctx.drawImage(qrCanvasEl, qrBoxX + qrBoxPad, qrBoxY + qrBoxPad, qrSize, qrSize);
-
-  ctx.restore();
-
-  const a = document.createElement('a');
-  a.download = `${sanitizeFileName(s.title)}-分享海报.png`;
+  showToast('海报生成中…');
+  const cardEl = document.getElementById('msCard');
   try {
+    // scale 调高一些，保证导出的图片足够清晰（不会因为手机屏幕本身分辨率一般而显得模糊）
+    const scale = Math.max(3, (window.devicePixelRatio || 1) * 2);
+    const canvas = await html2canvas(cardEl, {
+      backgroundColor: '#ffffff',
+      scale,
+      useCORS: true,
+      logging: false,
+    });
+    const a = document.createElement('a');
+    a.download = `${sanitizeFileName(s.title)}-分享海报.png`;
     a.href = canvas.toDataURL('image/png');
     a.click();
     showToast('✅ 海报已生成，正在下载');
   } catch (e) {
     console.error('生成海报失败', e);
-    showToast('海报生成失败（图片跨域限制），可尝试"保存图片"');
+    showToast('海报生成失败（可能是图片跨域限制），可尝试"保存图片"');
   }
 }
 
