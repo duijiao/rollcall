@@ -37,16 +37,14 @@
     <div class="app-topbar-id">
       <div class="app-topbar-title">巴西华人基督教会</div>
       <div class="admin-badge" id="topbarAdminBadge" style="display:none"><i class="ti ti-shield-check"></i>管理员</div>
-      <div class="guest-badge" id="topbarGuestBadge"><i class="ti ti-user"></i>游客模式</div>
+      <button class="guest-badge" id="topbarGuestBadge" onclick="openLogin()" title="点击登录管理员账号" aria-label="游客模式，点击登录">
+        <i class="ti ti-user"></i>游客模式 · 点击登录
+      </button>
     </div>
     <div class="app-topbar-icons">
       <!-- Search moved up from the header card for quicker access -->
       <button class="search-entry-btn" id="searchEntryBtn" onclick="openSearchModal()" title="搜索人员排班" aria-label="搜索排班">
         <i class="ti ti-search"></i><span class="tb-btn-label">搜索</span>
-      </button>
-      <!-- Logged-out state: guest can log in here; leave requests now live in Settings -->
-      <button class="login-entry-btn" id="loginEntryBtn" onclick="openLogin()" title="管理员登录" aria-label="管理员登录">
-        <i class="ti ti-lock"></i><span class="tb-btn-label">登录</span>
       </button>
       <!-- Song library entry now sits in the primary top bar for quick access -->
       <button class="songlib-entry-btn" id="songLibEntryBtn" onclick="openSongLibrary()" title="诗歌库" aria-label="诗歌库">
@@ -70,11 +68,12 @@
             <button class="admin-menu-item" onclick="closeAdminMenu();openRoster()">
               <i class="ti ti-users"></i><span>名单成员管理</span>
             </button>
+            <div class="admin-menu-divider"></div>
+            <button class="admin-menu-item danger" onclick="closeAdminMenu();logout()">
+              <i class="ti ti-logout"></i><span>退出登录</span>
+            </button>
           </div>
         </div>
-        <button class="logout-btn" onclick="logout()" title="退出登录" aria-label="退出登录">
-          <i class="ti ti-logout"></i><span class="tb-btn-label">退出</span>
-        </button>
       </div>
       <button class="settings-entry-btn" onclick="openSettings()" title="用户设置" aria-label="用户设置">
         <i class="ti ti-settings"></i><span class="tb-btn-label">设置</span>
@@ -409,6 +408,39 @@
         <div class="export-option-desc">导出当前月份所有周日的排班</div>
       </div>
     </div>
+    <div class="export-option" onclick="openCustomExport()">
+      <div class="export-option-icon" style="background:#EAF1FC"><i class="ti ti-adjustments" style="color:#2B5FAD"></i></div>
+      <div>
+        <div class="export-option-title">自定义导出</div>
+        <div class="export-option-desc">自选日期范围，可自定义标题</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="customExportOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="export-choice modal-has-close-btn" onclick="event.stopPropagation()">
+    <button class="modal-close-btn" onclick="document.getElementById('customExportOverlay').classList.remove('open')" aria-label="关闭"><i class="ti ti-x"></i></button>
+    <div class="picker-handle"></div>
+    <div class="export-choice-title">自定义导出</div>
+    <div class="export-choice-sub">选择日期范围，并可以自定义标题</div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:16px">
+      <div>
+        <label style="display:block;font-size:13px;color:var(--text-secondary,#666);margin-bottom:6px">开始日期</label>
+        <input type="date" id="customExportStart" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.12);font-size:15px">
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;color:var(--text-secondary,#666);margin-bottom:6px">结束日期</label>
+        <input type="date" id="customExportEnd" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.12);font-size:15px">
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;color:var(--text-secondary,#666);margin-bottom:6px">自定义标题（留空则用默认标题）</label>
+        <input type="text" id="customExportTitle" placeholder="例如：2026年复活节特别聚会排班表" maxlength="40" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.12);font-size:15px">
+      </div>
+    </div>
+    <button class="export-btn" style="width:100%;justify-content:center;margin-top:20px" onclick="doExportCustom()">
+      <i class="ti ti-download"></i> 生成并下载
+    </button>
   </div>
 </div>
 
@@ -709,10 +741,14 @@
   <div class="song-lib-detail-modal modal-has-close-btn" onclick="event.stopPropagation()">
     <button class="modal-close-btn" onclick="closeSongLibDetail()" aria-label="关闭"><i class="ti ti-x"></i></button>
     <div class="picker-handle"></div>
-    <div class="song-lib-detail-thumb" id="songLibDetailThumb"></div>
+    <div class="song-lib-detail-thumb-wrap">
+      <div class="song-lib-detail-thumb" id="songLibDetailThumb"></div>
+      <button class="song-lib-detail-play-fab" id="songLibDetailPlayFab" onclick="event.stopPropagation();openSongNowPlayingFromDetail()" title="播放"><i class="ti ti-player-play"></i></button>
+    </div>
     <div class="song-lib-detail-title-row">
       <div class="song-lib-detail-title" id="songLibDetailTitle"></div>
       <button class="song-lib-detail-fav-btn" id="songLibDetailFavBtn" onclick="toggleSongLibFavoriteFromDetail()" title="收藏"><i class="ti ti-heart"></i></button>
+      <button class="song-lib-detail-share-btn" onclick="openSongShareFromDetail()" title="分享"><i class="ti ti-share"></i></button>
     </div>
     <div class="song-lib-detail-category" id="songLibDetailCategory"></div>
     <div class="song-lib-detail-source" id="songLibDetailSource"></div>
@@ -841,6 +877,118 @@
     <div class="drawer-actions">
       <button class="btn-cancel" onclick="closeMusicLinkEdit()">取消</button>
       <button class="btn-save" onclick="submitMusicLinkEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Now playing: full-screen music player (sheet music + transport controls) ── -->
+<div class="now-playing-page" id="nowPlayingOverlay">
+  <div class="np-top">
+    <button class="np-icon-btn" onclick="closeNowPlaying()" aria-label="收起"><i class="ti ti-chevron-down"></i></button>
+    <div class="np-top-title">正在播放</div>
+    <div class="np-top-right">
+      <button class="np-icon-btn" onclick="toggleNowPlayingMoreMenu()" aria-label="更多"><i class="ti ti-dots"></i></button>
+      <div class="np-more-menu" id="npMoreMenu">
+        <button onclick="closeNowPlayingMoreMenu();openMusicShare()"><i class="ti ti-share"></i>分享音乐</button>
+        <button onclick="closeNowPlayingMoreMenu();downloadCurrentNowPlayingImage()"><i class="ti ti-download"></i>下载谱子图片</button>
+        <button id="npMoreFavBtn" onclick="closeNowPlayingMoreMenu();toggleNowPlayingFavorite()"><i class="ti ti-heart"></i>收藏</button>
+      </div>
+    </div>
+  </div>
+  <div class="np-body">
+    <div class="np-sheet-card" id="npSheetCard">
+      <div class="np-sheet-img-wrap" id="npSheetImgWrap"></div>
+    </div>
+    <div class="np-title-row">
+      <div class="np-title-info">
+        <div class="np-song-title" id="npSongTitle"></div>
+        <div class="np-song-band" id="npSongBand"></div>
+      </div>
+      <button class="np-fav-btn" id="npFavBtn" onclick="toggleNowPlayingFavorite()" title="收藏"><i class="ti ti-heart"></i></button>
+    </div>
+    <div class="np-tags-row" id="npTagsRow"></div>
+    <div class="np-lyrics-preview" id="npLyricsPreview" onclick="toggleNowPlayingLyrics()"></div>
+    <div class="np-progress-row">
+      <span class="np-time" id="npCurTime">00:00</span>
+      <input type="range" class="np-progress-slider" id="npProgressSlider" min="0" max="1000" value="0" oninput="onNowPlayingSeekInput(this.value)" onchange="onNowPlayingSeekChange(this.value)">
+      <span class="np-time" id="npDurTime">00:00</span>
+    </div>
+    <div class="np-controls-row">
+      <button class="np-ctrl-btn" id="npModeBtn" onclick="cycleNowPlayingMode()" title="播放模式"><i class="ti ti-repeat"></i></button>
+      <button class="np-ctrl-btn" onclick="floatingAudioPrev()" title="上一首"><i class="ti ti-player-skip-back"></i></button>
+      <button class="np-play-btn" id="npPlayBtn" onclick="toggleFloatingAudioPlay()" title="播放/暂停"><i class="ti ti-player-play"></i></button>
+      <button class="np-ctrl-btn" onclick="floatingAudioNext()" title="下一首"><i class="ti ti-player-skip-forward"></i></button>
+      <button class="np-ctrl-btn" onclick="openNowPlayingQueue()" title="播放列表"><i class="ti ti-list"></i></button>
+    </div>
+    <div class="np-bottom-tools">
+      <button class="np-tool-btn" onclick="openTransposePanel()"><i class="ti ti-adjustments"></i><span>变调</span></button>
+      <button class="np-tool-btn" id="npMetronomeBtn" onclick="toggleMetronome()"><i class="ti ti-music"></i><span>节拍器</span></button>
+      <button class="np-tool-btn" onclick="toggleNowPlayingLyrics()"><i class="ti ti-align-center"></i><span>歌词</span></button>
+      <button class="np-tool-btn" onclick="toggleNowPlayingMoreMenu()"><i class="ti ti-dots"></i><span>更多</span></button>
+    </div>
+  </div>
+  <div class="np-slide-panel" id="npLyricsPanel">
+    <div class="np-slide-panel-head"><span>完整歌词</span><button onclick="toggleNowPlayingLyrics()" aria-label="关闭"><i class="ti ti-x"></i></button></div>
+    <div class="np-slide-panel-body" id="npLyricsPanelBody"></div>
+  </div>
+  <div class="np-slide-panel" id="npTransposePanel">
+    <div class="np-slide-panel-head"><span>选择调 / 版本</span><button onclick="closeTransposePanel()" aria-label="关闭"><i class="ti ti-x"></i></button></div>
+    <div class="np-slide-panel-body" id="npTransposeList"></div>
+  </div>
+  <div class="np-slide-panel" id="npQueuePanel">
+    <div class="np-slide-panel-head"><span>播放列表</span><button onclick="closeNowPlayingQueue()" aria-label="关闭"><i class="ti ti-x"></i></button></div>
+    <div class="np-slide-panel-body" id="npQueueList"></div>
+  </div>
+  <div class="np-slide-panel-backdrop" id="npSlidePanelBackdrop" onclick="closeAllNowPlayingPanels()"></div>
+</div>
+
+<!-- ── Share music: shareable card + QR code + share targets ── -->
+<div class="music-share-page" id="musicShareOverlay">
+  <div class="ms-top">
+    <button class="np-icon-btn" onclick="closeMusicShare()" aria-label="关闭"><i class="ti ti-x"></i></button>
+    <div class="np-top-title">分享音乐</div>
+    <div class="np-icon-btn" style="visibility:hidden"><i class="ti ti-x"></i></div>
+  </div>
+  <div class="ms-body">
+    <div class="ms-card" id="msCard">
+      <div class="ms-card-brand">
+        <div class="ms-card-brand-left">
+          <div class="ms-card-brand-icon"><i class="ti ti-music"></i></div>
+          <div>
+            <div class="ms-card-brand-name">诗歌库</div>
+            <div class="ms-card-brand-tag">让敬拜更简单</div>
+          </div>
+        </div>
+        <div class="ms-card-brand-watermark">Worship</div>
+      </div>
+      <div class="ms-card-song-row">
+        <div class="ms-card-thumb" id="msCardThumb"></div>
+        <div class="ms-card-song-info">
+          <div class="ms-card-song-title" id="msCardTitle"></div>
+          <div class="ms-card-song-band" id="msCardBand"></div>
+          <div class="ms-card-song-tags" id="msCardTags"></div>
+        </div>
+      </div>
+      <div class="ms-card-quote" id="msCardQuote"></div>
+      <div class="ms-card-footer">
+        <div class="ms-card-footer-text">
+          <div class="ms-card-footer-from">来自 诗歌库</div>
+          <div class="ms-card-footer-sub">海量诗歌，轻松敬拜</div>
+        </div>
+        <canvas class="ms-card-qr" id="msCardQr" width="96" height="96"></canvas>
+      </div>
+    </div>
+    <div class="ms-share-title">分享给</div>
+    <div class="ms-share-row">
+      <button class="ms-share-item" onclick="shareMusicTo('wechat')"><span class="ms-share-icon" style="background:#eafaf0">💬</span>微信好友</button>
+      <button class="ms-share-item" onclick="shareMusicTo('moments')"><span class="ms-share-icon" style="background:#eef6ff">🌄</span>朋友圈</button>
+      <button class="ms-share-item" onclick="shareMusicTo('qq')"><span class="ms-share-icon" style="background:#eaf3ff">🐧</span>QQ好友</button>
+      <button class="ms-share-item" onclick="copyMusicShareLink()"><span class="ms-share-icon" style="background:#f2f2f0"><i class="ti ti-link"></i></span>复制链接</button>
+    </div>
+    <div class="ms-bottom-row">
+      <button class="ms-bottom-item" onclick="saveMusicSharePoster()"><i class="ti ti-download"></i>保存海报</button>
+      <button class="ms-bottom-item" onclick="saveMusicShareImage()"><i class="ti ti-photo"></i>保存图片</button>
+      <button class="ms-bottom-item" onclick="moreMusicShareOptions()"><i class="ti ti-dots"></i>更多</button>
     </div>
   </div>
 </div>
@@ -1024,6 +1172,7 @@
 <canvas id="exportCanvas"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
