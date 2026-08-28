@@ -2917,8 +2917,8 @@ function renderMusicShareCard() {
   document.getElementById('msCardTitle').textContent = s.title;
   document.getElementById('msCardBand').textContent = s.band || s.songbook || '诗歌库';
   const tags = [];
-  if (s.keys.length) tags.push(`<span>${s.keys.length}个调</span>`);
-  tags.push(`<span>简谱</span>`);
+  if (s.keys.length) tags.push(`<span><i class="ti ti-music"></i>${s.keys.length}个调</span>`);
+  tags.push(`<span><i class="ti ti-layout-grid"></i>简谱</span>`);
   document.getElementById('msCardTags').innerHTML = tags.join('');
   const lyricsLines = (s.lyrics || '').split('\n').map(l => l.trim()).filter(Boolean);
   document.getElementById('msCardQuote').innerHTML = lyricsLines.length
