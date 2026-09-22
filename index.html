@@ -295,6 +295,18 @@
     <div class="drawer-title">用户反馈</div>
     <div class="drawer-sub">仅管理员可见，数据来自云端，最多拉取最近 200 条</div>
 
+    <div class="fb-toggle-row">
+      <div class="settings-row-body">
+        <div class="settings-row-label">每日反馈弹窗</div>
+        <div class="settings-row-desc">开启后，访客每天第一次打开页面会看到反馈邀请弹窗</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="feedbackEnabledToggle" onchange="onFeedbackEnabledToggle(this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+
     <div class="upload-source-tabs" style="margin-bottom:14px">
       <button class="upload-source-tab active" id="feedbackListTabAll" onclick="switchFeedbackListTab('all')">全部</button>
       <button class="upload-source-tab" id="feedbackListTabGood" onclick="switchFeedbackListTab('good')">很好</button>
@@ -509,100 +521,55 @@
   </div>
 </div>
 
-<!-- ── 全局通知弹窗（图片卡片样式，内容由管理员在"设置"中配置）──── -->
-<div class="modal-overlay" id="globalNoticeOverlay" onclick="closeGlobalNoticeModal(event)">
-  <div class="gn-modal modal-has-close-btn" onclick="event.stopPropagation()">
-    <button class="modal-close-btn gn-close-btn" onclick="closeGlobalNoticeModal()" aria-label="关闭"><i class="ti ti-x"></i></button>
-
-    <div class="gn-cover" id="gnCoverWrap">
-      <img class="gn-cover-img" id="gnCoverImg" src="" alt="">
-      <div class="gn-cover-shade"></div>
+<!-- ── 每日反馈收集弹窗 ──────────────────────────────── -->
+<div class="modal-overlay" id="feedbackOverlay" onclick="closeFeedbackModal(event)">
+  <div class="feedback-modal modal-has-close-btn" onclick="event.stopPropagation()">
+    <button class="modal-close-btn" onclick="closeFeedbackModal()" aria-label="关闭"><i class="ti ti-x"></i></button>
+    <div class="feedback-icon-wrap">
+      <i class="ti ti-heart"></i>
+      <i class="ti ti-leaf fb-leaf fb-leaf-l"></i>
+      <i class="ti ti-leaf fb-leaf fb-leaf-r"></i>
     </div>
-    <div class="gn-badge" id="gnBadge"><i class="ti ti-volume-3"></i><span id="gnBadgeText">重要</span></div>
+    <div class="feedback-title">帮我们把网页做得更好</div>
+    <div class="feedback-sub">感谢你每天的使用！<br>为了给大家带来更好的体验，我们想听听你的意见和建议。</div>
 
-    <div class="gn-body">
-      <div class="gn-title" id="gnTitle"></div>
-      <div class="gn-meta-row">
-        <span class="gn-meta-item"><i class="ti ti-clock"></i><span id="gnPublishTime"></span></span>
-        <span class="gn-meta-tag" id="gnTag">活动</span>
+    <div class="feedback-section-label">你今天使用起来感觉怎么样？</div>
+    <div class="feedback-mood-row" id="feedbackMoodRow">
+      <button type="button" class="feedback-mood-btn" data-mood="good" onclick="selectFeedbackMood('good')">
+        <i class="ti ti-mood-smile"></i><span>很好</span>
+      </button>
+      <button type="button" class="feedback-mood-btn" data-mood="neutral" onclick="selectFeedbackMood('neutral')">
+        <i class="ti ti-mood-neutral"></i><span>一般</span>
+      </button>
+      <button type="button" class="feedback-mood-btn" data-mood="bad" onclick="selectFeedbackMood('bad')">
+        <i class="ti ti-mood-sad"></i><span>有问题</span>
+      </button>
+    </div>
+
+    <div class="feedback-section-label">你希望改进什么？（可选）</div>
+    <div class="feedback-textarea-wrap">
+      <textarea class="feedback-textarea" id="feedbackMessageInput" maxlength="200" placeholder="例如：希望增加某个功能，或强化某个页面…" oninput="updateFeedbackCharCount()"></textarea>
+      <div class="feedback-char-count" id="feedbackCharCount">0/200</div>
+    </div>
+
+    <div class="feedback-tips-box">
+      <div class="feedback-tips-head"><i class="ti ti-bulb"></i>可以告诉我们：</div>
+      <div class="feedback-tips-grid" id="feedbackTipsGrid">
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'哪个功能不好用')">哪个功能不好用</div>
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'希望增加什么功能')">希望增加什么功能</div>
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'哪个地方看不懂')">哪个地方看不懂</div>
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'页面哪里需要优化')">页面哪里需要优化</div>
       </div>
+    </div>
 
-      <div class="gn-text" id="gnText"></div>
+    <label class="feedback-remember-row">
+      <input type="checkbox" id="feedbackDisableToggle">
+      <span>今天不再显示此反馈弹窗</span>
+    </label>
 
-      <div class="gn-compare-box" id="gnCompareBox">
-        <div class="gn-compare-row">
-          <div class="gn-compare-item">
-            <div class="gn-compare-icon"><i class="ti ti-clock"></i></div>
-            <div class="gn-compare-info">
-              <div class="gn-compare-label">原时间</div>
-              <div class="gn-compare-value gn-old" id="gnOldValue"></div>
-            </div>
-          </div>
-          <i class="ti ti-arrow-right gn-compare-arrow"></i>
-          <div class="gn-compare-item">
-            <div class="gn-compare-icon gn-compare-icon-new"><i class="ti ti-clock"></i></div>
-            <div class="gn-compare-info">
-              <div class="gn-compare-label">调整后时间</div>
-              <div class="gn-compare-value gn-new" id="gnNewValue"></div>
-            </div>
-          </div>
-        </div>
-        <div class="gn-location-row" id="gnLocationRow">
-          <div class="gn-compare-icon"><i class="ti ti-map-pin"></i></div>
-          <div class="gn-compare-info">
-            <div class="gn-compare-label">地点</div>
-            <div class="gn-compare-value" id="gnLocationValue"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="gn-attachment" id="gnAttachment" onclick="openGlobalNoticeAttachment()">
-        <div class="gn-attach-head"><i class="ti ti-paperclip"></i><span>相关附件</span></div>
-        <div class="gn-attach-card">
-          <div class="gn-attach-icon"><i class="ti ti-file-type-pdf"></i></div>
-          <div class="gn-attach-info">
-            <div class="gn-attach-name" id="gnAttachName"></div>
-            <div class="gn-attach-sub">点击查看 / 下载</div>
-          </div>
-          <i class="ti ti-download"></i>
-        </div>
-      </div>
-
-      <div class="gn-feedback-section">
-        <div class="gn-feedback-title">你使用起来感觉怎么样？<span class="gn-feedback-optional">（可选，帮助我们改进）</span></div>
-        <div class="feedback-mood-row" id="feedbackMoodRow">
-          <button type="button" class="feedback-mood-btn" data-mood="good" onclick="selectFeedbackMood('good')">
-            <i class="ti ti-mood-smile"></i><span>很好</span>
-          </button>
-          <button type="button" class="feedback-mood-btn" data-mood="neutral" onclick="selectFeedbackMood('neutral')">
-            <i class="ti ti-mood-neutral"></i><span>一般</span>
-          </button>
-          <button type="button" class="feedback-mood-btn" data-mood="bad" onclick="selectFeedbackMood('bad')">
-            <i class="ti ti-mood-sad"></i><span>有问题</span>
-          </button>
-        </div>
-        <div class="feedback-textarea-wrap">
-          <textarea class="feedback-textarea" id="feedbackMessageInput" maxlength="200" placeholder="例如：希望增加某个功能，或强化某个页面…" oninput="updateFeedbackCharCount()"></textarea>
-          <div class="feedback-char-count" id="feedbackCharCount">0/200</div>
-        </div>
-        <div class="feedback-tips-box">
-          <div class="feedback-tips-head"><i class="ti ti-bulb"></i>可以告诉我们：</div>
-          <div class="feedback-tips-grid" id="feedbackTipsGrid">
-            <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'哪个功能不好用')">哪个功能不好用</div>
-            <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'希望增加什么功能')">希望增加什么功能</div>
-            <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'哪个地方看不懂')">哪个地方看不懂</div>
-            <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'页面哪里需要优化')">页面哪里需要优化</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="gn-actions">
-        <label class="gn-read-row">
-          <input type="checkbox" id="gnMarkReadToggle">
-          <span>标记为已读</span>
-        </label>
-        <button type="button" class="gn-ok-btn" onclick="confirmGlobalNotice(event)">我知道了</button>
-      </div>
+    <div class="feedback-actions">
+      <button type="button" class="feedback-btn-secondary" onclick="closeFeedbackModal()">稍后再说</button>
+      <button type="button" class="feedback-btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">提交反馈</button>
     </div>
   </div>
 </div>
@@ -800,94 +767,6 @@
         <a href="church.html" target="_blank" style="font-size:12.5px;color:var(--primary);font-weight:600;text-decoration:none">
           <i class="ti ti-external-link" style="font-size:13px;margin-right:3px"></i>预览教会主页
         </a>
-      </div>
-    </div>
-
-    <!-- 全局通知弹窗（仅管理员） -->
-    <div class="settings-section admin-only-section" id="globalNoticeSection" style="display:none">
-      <div class="settings-section-title">📢 全局通知弹窗（管理员）</div>
-      <div class="settings-card" style="padding:12px 16px;display:flex;flex-direction:column;gap:14px;">
-        <div style="font-size:12px;color:#999;line-height:1.6">
-          设置内容并点击"保存并发布"后，会以图片卡片样式弹窗提醒所有访问者（每人首次看到时弹出一次）。随时可以用下方开关关闭，关闭后不再对任何人弹出。
-        </div>
-
-        <div class="a11y-toggle-wrap" style="padding:0">
-          <div class="settings-row-body">
-            <div class="settings-row-label">开启全局通知弹窗</div>
-            <div class="a11y-preview">关闭后立即对所有人生效，内容会保留，方便下次直接重新开启</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="gnAdminEnabledToggle" onchange="toggleGlobalNoticeEnabled(this.checked)">
-            <div class="toggle-track"></div>
-            <div class="toggle-thumb"></div>
-          </label>
-        </div>
-
-        <div style="display:flex;gap:10px">
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666;margin-bottom:4px">徽章文字</div>
-            <input class="form-input" id="gnAdminBadgeInput" type="text" maxlength="6" placeholder="重要">
-          </div>
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666;margin-bottom:4px">分类标签</div>
-            <input class="form-input" id="gnAdminTagInput" type="text" maxlength="6" placeholder="活动 / 通知">
-          </div>
-        </div>
-
-        <div>
-          <div style="font-size:12px;color:#666;margin-bottom:4px">标题</div>
-          <input class="form-input" id="gnAdminTitleInput" type="text" maxlength="40" placeholder="例如：本周主日聚会时间调整">
-        </div>
-
-        <div>
-          <div style="font-size:12px;color:#666;margin-bottom:4px">封面图片（选填，留空则不显示图片）</div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <img id="gnAdminImagePreview" src="" style="width:72px;height:48px;border-radius:10px;object-fit:cover;background:#f2f2f0;display:none;flex-shrink:0" alt="">
-            <label class="btn-cancel" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;cursor:pointer">
-              <i class="ti ti-upload" style="font-size:14px"></i>上传图片
-              <input type="file" accept="image/*" style="display:none" onchange="handleGlobalNoticeImageSelect(this)">
-            </label>
-            <button class="btn-cancel" style="padding:6px 10px" onclick="clearGlobalNoticeImage()" title="移除图片"><i class="ti ti-x"></i></button>
-          </div>
-        </div>
-
-        <div>
-          <div style="font-size:12px;color:#666;margin-bottom:4px">正文内容</div>
-          <textarea class="leave-reason-textarea" id="gnAdminBodyInput" maxlength="300" placeholder="因场地安排调整，本周主日聚会时间将有所变动，具体安排如下："></textarea>
-        </div>
-
-        <div style="display:flex;gap:10px">
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666;margin-bottom:4px">原时间（选填）</div>
-            <input class="form-input" id="gnAdminOldValueInput" type="text" maxlength="30" placeholder="09:00 - 11:00">
-          </div>
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666;margin-bottom:4px">调整后时间（选填）</div>
-            <input class="form-input" id="gnAdminNewValueInput" type="text" maxlength="30" placeholder="08:30 - 10:30">
-          </div>
-        </div>
-        <div>
-          <div style="font-size:12px;color:#666;margin-bottom:4px">地点（选填）</div>
-          <input class="form-input" id="gnAdminLocationInput" type="text" maxlength="30" placeholder="教会主堂（不变）">
-        </div>
-
-        <div style="display:flex;gap:10px">
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666;margin-bottom:4px">附件名称（选填）</div>
-            <input class="form-input" id="gnAdminAttachNameInput" type="text" maxlength="40" placeholder="主日流程调整通知.pdf">
-          </div>
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666;margin-bottom:4px">附件链接（选填）</div>
-            <input class="form-input" id="gnAdminAttachUrlInput" type="text" placeholder="https://...">
-          </div>
-        </div>
-
-        <div class="leave-form-error" id="gnAdminError"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-cancel" style="flex:none;padding:8px 14px" onclick="previewGlobalNotice()"><i class="ti ti-eye" style="font-size:14px;margin-right:4px"></i>预览</button>
-          <button class="btn-save" style="flex:1" onclick="saveGlobalNoticeSettings(event)"><i class="ti ti-send" style="font-size:14px;margin-right:4px"></i>保存并发布（重新提醒所有人）</button>
-        </div>
-        <div style="font-size:11.5px;color:#bbb;line-height:1.6">发布时间会自动记为当前时间；每次点击"保存并发布"都会让所有人（包括已看过旧内容的人）重新看到一次最新内容。</div>
       </div>
     </div>
 
