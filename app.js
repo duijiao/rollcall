@@ -21,6 +21,24 @@ let customEventDates = (window.APP_CONFIG.customEventDates && typeof window.APP_
 let churchSite = { logoUrl: '', bannerUrl: '', roleBgImages: {}, headerBgUrl: '', headerTextTone: 'dark' };
 const DEFAULT_HEADER_SLOGAN = '与主同行 每天更近一步';
 
+// 全局通知弹窗（图片卡片样式）：内容由管理员在"设置"里配置，enabled=true 时对所有访问者弹出一次；
+// updatedAt 每次"保存并发布"都会更新，用来让已经看过旧内容的人重新看到最新一次发布的内容。
+let globalNotice = {
+  enabled: false, badge: '重要', tag: '通知', title: '', image: '', publishTime: '',
+  body: '', oldValue: '', newValue: '', location: '',
+  attachmentName: '', attachmentUrl: '', updatedAt: 0,
+};
+function normalizeGlobalNotice(raw) {
+  const d = { enabled: false, badge: '重要', tag: '通知', title: '', image: '', publishTime: '',
+    body: '', oldValue: '', newValue: '', location: '', attachmentName: '', attachmentUrl: '', updatedAt: 0 };
+  if (!raw || typeof raw !== 'object') return d;
+  const out = Object.assign({}, d);
+  Object.keys(d).forEach(k => { if (raw[k] !== undefined && raw[k] !== null) out[k] = raw[k]; });
+  out.enabled = !!out.enabled;
+  out.updatedAt = Number(out.updatedAt) || 0;
+  return out;
+}
+
 function getHeaderBgImage() {
   const url = churchSite && churchSite.headerBgUrl;
   return typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '';
@@ -5000,6 +5018,12 @@ function openSettings() {
       if (bannerPrev) bannerPrev.style.display = churchSite.bannerUrl ? '' : 'none';
     }
   }
+  // 全局通知弹窗设置：仅管理员可见
+  const globalNoticeSec = document.getElementById('globalNoticeSection');
+  if (globalNoticeSec) {
+    globalNoticeSec.style.display = isAdmin ? '' : 'none';
+    if (isAdmin) fillGlobalNoticeAdminInputs();
+  }
   // 首页日期卡片背景图设置：仅管理员可见
   const headerBgSec = document.getElementById('headerBgSection');
   if (headerBgSec) {
@@ -5730,51 +5754,225 @@ function closeSaturdayReminder(e){
   }
 }
 
-// ── 每日反馈收集弹窗 ──────────────────────────────────
-// LS_FEEDBACK_SHOWN_DATE：记录"今天"是否已经弹出过（每天第一次进入才弹）
-// LS_FEEDBACK_DISABLED：用户勾选"今天不再显示此反馈弹窗"并关闭/提交后，
-//                        代表主动关闭了这个每天弹出的提醒，之后不再自动弹出
-//                        （除非清除浏览器数据，相当于重新订阅）
-const LS_FEEDBACK_SHOWN_DATE = 'churchFeedbackShownDate';
-const LS_FEEDBACK_DISABLED = 'churchFeedbackDisabled';
-let feedbackSelectedMood = null;
-let feedbackSelectedTips = [];
+// ── 全局通知弹窗（图片卡片样式，内容由管理员在"设置"里配置）──────
+// LS_GLOBAL_NOTICE_SEEN：记录本设备已经看过（点击"我知道了"/勾选"标记为已读"关闭）的
+//                        通知版本号（用 updatedAt 时间戳区分）。管理员每次"保存并发布"
+//                        都会更新 updatedAt，于是所有人（包括已看过旧内容的人）都会重新弹出一次。
+const LS_GLOBAL_NOTICE_SEEN = 'churchGlobalNoticeSeenVersion';
+let gnPreviewMode = false;
 
-function checkFeedbackModal(){
-  try{
-    if(localStorage.getItem(LS_FEEDBACK_DISABLED) === '1') return;
-    const today = new Date();
-    const todayKey = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
-    if(localStorage.getItem(LS_FEEDBACK_SHOWN_DATE) === todayKey) return;
-    localStorage.setItem(LS_FEEDBACK_SHOWN_DATE, todayKey);
-  }catch(e){}
+function renderGlobalNoticeModal(data){
+  const n = data || globalNotice;
+  const modalEl = document.querySelector('#globalNoticeOverlay .gn-modal');
+  const coverWrap = document.getElementById('gnCoverWrap');
+  const coverImg = document.getElementById('gnCoverImg');
+  const hasImage = !!(n.image && /^https?:\/\//i.test(n.image));
+  if(coverWrap) coverWrap.style.display = hasImage ? '' : 'none';
+  if(coverImg) coverImg.src = hasImage ? n.image : '';
+  if(modalEl) modalEl.classList.toggle('gn-no-cover', !hasImage);
+
+  const badgeText = document.getElementById('gnBadgeText');
+  if(badgeText) badgeText.textContent = n.badge || '重要';
+  const badgeEl = document.getElementById('gnBadge');
+  if(badgeEl) badgeEl.style.display = n.badge ? '' : 'none';
+
+  const titleEl = document.getElementById('gnTitle');
+  if(titleEl) titleEl.textContent = n.title || '通知';
+
+  const timeEl = document.getElementById('gnPublishTime');
+  if(timeEl) timeEl.textContent = n.publishTime ? `发布于 ${n.publishTime}` : '';
+
+  const tagEl = document.getElementById('gnTag');
+  if(tagEl){ tagEl.textContent = n.tag || ''; tagEl.style.display = n.tag ? '' : 'none'; }
+
+  const textEl = document.getElementById('gnText');
+  if(textEl) textEl.textContent = n.body || '';
+
+  const compareBox = document.getElementById('gnCompareBox');
+  const compareRow = compareBox ? compareBox.querySelector('.gn-compare-row') : null;
+  const showCompare = !!(n.oldValue || n.newValue);
+  if(compareRow) compareRow.style.display = showCompare ? '' : 'none';
+  const oldEl = document.getElementById('gnOldValue');
+  if(oldEl) oldEl.textContent = n.oldValue || '';
+  const newEl = document.getElementById('gnNewValue');
+  if(newEl) newEl.textContent = n.newValue || '';
+
+  const locRow = document.getElementById('gnLocationRow');
+  if(locRow) locRow.style.display = n.location ? '' : 'none';
+  const locVal = document.getElementById('gnLocationValue');
+  if(locVal) locVal.textContent = n.location || '';
+  if(compareBox) compareBox.style.display = (showCompare || n.location) ? '' : 'none';
+
+  const attach = document.getElementById('gnAttachment');
+  const hasAttach = !!(n.attachmentUrl && n.attachmentName);
+  if(attach) attach.style.display = hasAttach ? '' : 'none';
+  const attachName = document.getElementById('gnAttachName');
+  if(attachName) attachName.textContent = n.attachmentName || '';
+
+  const readCb = document.getElementById('gnMarkReadToggle');
+  if(readCb) readCb.checked = false;
+  if(typeof resetGlobalNoticeFeedbackForm === 'function') resetGlobalNoticeFeedbackForm();
+}
+
+function checkGlobalNoticeModal(){
+  if(!globalNotice || !globalNotice.enabled) return;
+  let seen = '';
+  try{ seen = localStorage.getItem(LS_GLOBAL_NOTICE_SEEN) || ''; }catch(e){}
+  if(seen === String(globalNotice.updatedAt)) return;
   // 稍作延迟再弹出，避免和登录框/主日提醒等首屏弹窗抢焦点；
   // 如果此刻已经有其他弹窗打开，就跳过（下一次进入页面时会正常判断）
   setTimeout(() => {
     const anyOpenModal = document.querySelector('.modal-overlay.open');
     if(anyOpenModal) return;
-    const overlay = document.getElementById('feedbackOverlay');
+    gnPreviewMode = false;
+    renderGlobalNoticeModal();
+    const overlay = document.getElementById('globalNoticeOverlay');
     if(overlay) overlay.classList.add('open');
   }, 1200);
 }
 
-function applyFeedbackDisableChoice(){
-  try{
-    const cb = document.getElementById('feedbackDisableToggle');
-    if(cb && cb.checked){
-      localStorage.setItem(LS_FEEDBACK_DISABLED, '1');
-    }
-  }catch(e){}
+function markGlobalNoticeSeen(){
+  try{ localStorage.setItem(LS_GLOBAL_NOTICE_SEEN, String(globalNotice.updatedAt)); }catch(e){}
 }
 
-function closeFeedbackModal(e){
-  const overlay = document.getElementById('feedbackOverlay');
+function closeGlobalNoticeModal(e){
+  const overlay = document.getElementById('globalNoticeOverlay');
   if(!overlay) return;
   if(!e || e.target === overlay){
-    applyFeedbackDisableChoice();
+    if(!gnPreviewMode) markGlobalNoticeSeen();
     overlay.classList.remove('open');
+    gnPreviewMode = false;
   }
 }
+
+function openGlobalNoticeAttachment(){
+  const url = gnPreviewMode ? document.getElementById('gnAdminAttachUrlInput')?.value.trim() : globalNotice.attachmentUrl;
+  if(url) window.open(url, '_blank');
+}
+
+// ── 管理员：编辑并发布全局通知弹窗 ─────────────────────
+function fillGlobalNoticeAdminInputs(){
+  const n = globalNotice;
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
+  const toggle = document.getElementById('gnAdminEnabledToggle');
+  if(toggle) toggle.checked = !!n.enabled;
+  set('gnAdminBadgeInput', n.badge);
+  set('gnAdminTagInput', n.tag);
+  set('gnAdminTitleInput', n.title);
+  set('gnAdminBodyInput', n.body);
+  set('gnAdminOldValueInput', n.oldValue);
+  set('gnAdminNewValueInput', n.newValue);
+  set('gnAdminLocationInput', n.location);
+  set('gnAdminAttachNameInput', n.attachmentName);
+  set('gnAdminAttachUrlInput', n.attachmentUrl);
+  const prev = document.getElementById('gnAdminImagePreview');
+  if(prev){
+    prev.src = n.image || '';
+    prev.style.display = n.image ? '' : 'none';
+    prev.dataset.url = n.image || '';
+  }
+  const err = document.getElementById('gnAdminError');
+  if(err) err.textContent = '';
+}
+
+function readGlobalNoticeDraftFromInputs(){
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const imgPrev = document.getElementById('gnAdminImagePreview');
+  return {
+    badge: val('gnAdminBadgeInput'),
+    tag: val('gnAdminTagInput'),
+    title: val('gnAdminTitleInput'),
+    image: (imgPrev && imgPrev.dataset.url) || '',
+    body: val('gnAdminBodyInput'),
+    oldValue: val('gnAdminOldValueInput'),
+    newValue: val('gnAdminNewValueInput'),
+    location: val('gnAdminLocationInput'),
+    attachmentName: val('gnAdminAttachNameInput'),
+    attachmentUrl: val('gnAdminAttachUrlInput'),
+  };
+}
+
+async function handleGlobalNoticeImageSelect(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const prev = document.getElementById('gnAdminImagePreview');
+  try{
+    if(prev){ prev.style.opacity = '0.4'; prev.style.display = ''; }
+    const url = await uploadChurchSiteImage(file, 'notice');
+    if(prev){ prev.src = url; prev.dataset.url = url; prev.style.opacity = '1'; }
+    showToast('✅ 图片已上传，别忘了点"保存并发布"');
+  }catch(e){
+    if(prev) prev.style.opacity = '1';
+    showToast('上传失败：' + (e?.message || '请重试'));
+  }finally{
+    input.value = '';
+  }
+}
+
+function clearGlobalNoticeImage(){
+  const prev = document.getElementById('gnAdminImagePreview');
+  if(prev){ prev.src = ''; prev.dataset.url = ''; prev.style.display = 'none'; }
+}
+
+function previewGlobalNotice(){
+  const draft = readGlobalNoticeDraftFromInputs();
+  draft.publishTime = globalNotice.publishTime || formatGlobalNoticeTime(new Date());
+  gnPreviewMode = true;
+  renderGlobalNoticeModal(draft);
+  const overlay = document.getElementById('globalNoticeOverlay');
+  if(overlay) overlay.classList.add('open');
+}
+
+function formatGlobalNoticeTime(d){
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+async function saveGlobalNoticeSettings(evt){
+  const err = document.getElementById('gnAdminError');
+  const draft = readGlobalNoticeDraftFromInputs();
+  if(!draft.title){
+    if(err) err.textContent = '请先填写标题';
+    return;
+  }
+  if(err) err.textContent = '';
+  const btn = evt?.currentTarget;
+  if(btn){ btn.disabled = true; }
+  globalNotice = normalizeGlobalNotice(Object.assign({}, globalNotice, draft, {
+    enabled: true,
+    publishTime: formatGlobalNoticeTime(new Date()),
+    updatedAt: Date.now(),
+  }));
+  try{
+    await syncRemoteField('global_notice', globalNotice);
+    fillGlobalNoticeAdminInputs();
+    showToast('✅ 已发布，所有人下次打开页面都会看到最新内容');
+  }catch(e){
+    console.error('保存全局通知失败', e);
+    if(err) err.textContent = '保存失败：请确认已在 Supabase 的 church_app_state 表中新建 global_notice（jsonb）列';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function toggleGlobalNoticeEnabled(checked){
+  const prevEnabled = globalNotice.enabled;
+  globalNotice.enabled = checked;
+  try{
+    await syncRemoteField('global_notice', globalNotice);
+    showToast(checked ? '✅ 已开启，将对所有人显示' : '已关闭，不再对任何人弹出');
+  }catch(e){
+    console.error('切换全局通知开关失败', e);
+    globalNotice.enabled = prevEnabled;
+    const toggle = document.getElementById('gnAdminEnabledToggle');
+    if(toggle) toggle.checked = prevEnabled;
+    showToast('操作失败：请确认已在 Supabase 中新建 global_notice 列');
+  }
+}
+
+// ── 内嵌在通知弹窗里的用户反馈小模块（原"每日反馈弹窗"的反馈收集内容）──
+let feedbackSelectedMood = null;
+let feedbackSelectedTips = [];
 
 function selectFeedbackMood(mood){
   feedbackSelectedMood = mood;
@@ -5800,7 +5998,7 @@ function toggleFeedbackTip(el, label){
   }
 }
 
-function resetFeedbackForm(){
+function resetGlobalNoticeFeedbackForm(){
   feedbackSelectedMood = null;
   feedbackSelectedTips = [];
   document.querySelectorAll('.feedback-mood-btn').forEach(b => b.classList.remove('selected'));
@@ -5808,20 +6006,12 @@ function resetFeedbackForm(){
   const msgEl = document.getElementById('feedbackMessageInput');
   if(msgEl) msgEl.value = '';
   updateFeedbackCharCount();
-  const cb = document.getElementById('feedbackDisableToggle');
-  if(cb) cb.checked = false;
 }
 
-async function submitFeedback(){
-  if(!feedbackSelectedMood){
-    showToast('请先选择你今天的使用感受');
-    return;
-  }
+async function submitGlobalNoticeFeedbackIfAny(){
+  if(!feedbackSelectedMood) return;
   const msgEl = document.getElementById('feedbackMessageInput');
   const message = msgEl ? msgEl.value.trim() : '';
-  const btn = document.getElementById('feedbackSubmitBtn');
-  if(btn){ btn.disabled = true; btn.textContent = '提交中...'; }
-
   const payload = {
     mood: feedbackSelectedMood,
     message: message,
@@ -5830,7 +6020,6 @@ async function submitFeedback(){
     user_agent: navigator.userAgent || '',
     visitor_id: (typeof getVisitorId === 'function') ? getVisitorId() : '',
   };
-
   try{
     if(initSupabaseClient()){
       const { error } = await supabaseClient.from(SUPABASE_CONFIG.feedbackTable).insert(payload);
@@ -5839,16 +6028,25 @@ async function submitFeedback(){
     showToast('感谢你的反馈！我们会认真参考 🙏');
   }catch(e){
     console.error('反馈提交失败', e);
-    showToast('提交失败，请检查网络后重试');
-    if(btn){ btn.disabled = false; btn.textContent = '提交反馈'; }
+    showToast('通知已关闭，但反馈提交失败，请检查网络');
+  }
+}
+
+// "我知道了"：如果顺手选了使用感受，一并把反馈提交掉，再关闭通知
+async function confirmGlobalNotice(evt){
+  if(gnPreviewMode){
+    resetGlobalNoticeFeedbackForm();
+    closeGlobalNoticeModal(null);
     return;
   }
-
-  applyFeedbackDisableChoice();
-  const overlay = document.getElementById('feedbackOverlay');
+  const btn = evt?.currentTarget;
+  if(btn) btn.disabled = true;
+  await submitGlobalNoticeFeedbackIfAny();
+  markGlobalNoticeSeen();
+  const overlay = document.getElementById('globalNoticeOverlay');
   if(overlay) overlay.classList.remove('open');
-  if(btn){ btn.disabled = false; btn.textContent = '提交反馈'; }
-  resetFeedbackForm();
+  resetGlobalNoticeFeedbackForm();
+  if(btn) btn.disabled = false;
 }
 
 // ── 管理员：查看用户反馈列表 ──────────────────────────
@@ -6714,6 +6912,7 @@ function getSharedAppStateSnapshot() {
     song_lib_songbooks: normalizeSongLibSongbookList(songLibSongbooks),
     custom_event_dates: normalizeSimpleMap(customEventDates),
     church_site: normalizeSimpleMap(churchSite),
+    global_notice: normalizeGlobalNotice(globalNotice),
   };
 }
 
@@ -6733,6 +6932,9 @@ function applyRemoteAppState(row) {
   persistCustomEventDatesLocal();
   churchSite = { logoUrl: '', bannerUrl: '', roleBgImages: {}, headerBgUrl: '', headerTextTone: 'dark', ...normalizeSimpleMap(row?.church_site || churchSite) };
   if (!churchSite.roleBgImages || typeof churchSite.roleBgImages !== 'object') churchSite.roleBgImages = {};
+  if (row && row.global_notice !== undefined) {
+    globalNotice = normalizeGlobalNotice(row.global_notice);
+  }
   if (row && row.leave_requests !== undefined) {
     leaveRequests = normalizeLeaveRequests(row.leave_requests);
     persistLeaveRequests();
@@ -7561,7 +7763,7 @@ async function bootstrapApp() {
   syncTopbarSpacer();
   checkSundayReminder();
   checkSaturdayReminder();
-  checkFeedbackModal();
+  checkGlobalNoticeModal();
   checkSongShareLinkFromUrl();
 }
 
