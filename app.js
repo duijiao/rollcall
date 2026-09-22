@@ -12,7 +12,53 @@ let sermonByDate = window.APP_CONFIG.sermonByDate;
 // 特别聚会日期：除了每周固定的主日之外，管理员可以额外添加的排班日期
 // （比如培灵会、退修会这种一周里连续好几天都要排班的场合）。
 // 结构：{ 'YYYY-MM-DD': '标签文字，比如"特别聚会"' }
-let customEventDates = window.APP_CONFIG.customEventDates;
+let customEventDates = (window.APP_CONFIG.customEventDates && typeof window.APP_CONFIG.customEventDates === 'object' && !Array.isArray(window.APP_CONFIG.customEventDates)) ? window.APP_CONFIG.customEventDates : {};
+
+// 教会主页（church.html）用的站点素材：logo 和欢迎横幅背景图，管理员在"设置"里上传
+// roleBgImages：排班分类卡片（主领/伴唱/键盘…）的自定义背景图，结构 { '主领': 图片URL, ... }，没设置的分类沿用原来的颜色
+// headerBgUrl：首页顶部日期卡片的背景图；headerTextTone：'dark' | 'light'（图片偏亮/偏暗时文字用深色/浅色）；
+// headerSlogan：卡片标语，undefined 用默认文案，空字符串表示不显示
+let churchSite = { logoUrl: '', bannerUrl: '', roleBgImages: {}, headerBgUrl: '', headerTextTone: 'dark' };
+const DEFAULT_HEADER_SLOGAN = '与主同行 每天更近一步';
+
+function getHeaderBgImage() {
+  const url = churchSite && churchSite.headerBgUrl;
+  return typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '';
+}
+function getHeaderTextTone() {
+  return churchSite && churchSite.headerTextTone === 'light' ? 'light' : 'dark';
+}
+function getHeaderSlogan() {
+  const t = churchSite && churchSite.headerSlogan;
+  return typeof t === 'string' ? t.trim() : DEFAULT_HEADER_SLOGAN;
+}
+// 把日期卡片的背景图、文字色调、标语应用到页面（render() 每次都会调用，重复调用是安全的）
+function applyHeaderCardStyle() {
+  const card = document.getElementById('headerCard');
+  if (!card) return;
+  const url = getHeaderBgImage();
+  const bg = document.getElementById('headerCardBg');
+  if (bg) bg.style.backgroundImage = url ? cssUrl(url) : '';
+  card.classList.toggle('has-bg', !!url);
+  card.classList.toggle('tone-light', !!url && getHeaderTextTone() === 'light');
+  const slogan = document.getElementById('hdrSlogan');
+  if (slogan) {
+    const lines = getHeaderSlogan().split(/\s+/).filter(Boolean);
+    slogan.innerHTML = lines.map(l => `<span>${escapeHtml(l)}</span>`).join('');
+    slogan.style.display = lines.length ? '' : 'none';
+  }
+}
+
+// 取某个排班分类的自定义背景图 URL（没设置返回空字符串）
+function getRoleBgImage(role) {
+  const map = churchSite && churchSite.roleBgImages;
+  const url = map && typeof map === 'object' ? map[role] : '';
+  return typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '';
+}
+// 拼成安全的 CSS url("...")，避免 URL 里的引号/反斜杠/换行破坏样式
+function cssUrl(url) {
+  return 'url("' + String(url).replace(/["\\\n\r]/g, c => encodeURIComponent(c)) + '")';
+}
 
 function getRotationPerson(cfg, key) {
   const base = new Date(cfg.base + 'T00:00:00');
@@ -978,6 +1024,51 @@ function getAllScheduleDatesOfMonth(y,m){
   merged.sort((a,b)=>a-b);
   return merged;
 }
+// 特别聚会日期的本地持久化：云端字段（custom_event_dates）不存在或同步失败时，刷新页面也不会丢
+const LS_CUSTOM_EVENT_DATES='churchAppCustomEventDates';
+const LS_CUSTOM_EVENT_PENDING='churchAppCustomEventDatesPending';
+function loadCustomEventDatesLocal(){
+  try{
+    const raw=localStorage.getItem(LS_CUSTOM_EVENT_DATES);
+    if(!raw) return;
+    const obj=JSON.parse(raw);
+    if(obj && typeof obj==='object' && !Array.isArray(obj)) customEventDates=obj;
+  }catch(e){}
+}
+function persistCustomEventDatesLocal(){
+  try{ localStorage.setItem(LS_CUSTOM_EVENT_DATES, JSON.stringify(customEventDates)); }catch(e){}
+}
+function isCustomEventDatesPending(){
+  try{ return localStorage.getItem(LS_CUSTOM_EVENT_PENDING)==='1'; }catch(e){ return false; }
+}
+function setCustomEventDatesPending(v){
+  try{ if(v) localStorage.setItem(LS_CUSTOM_EVENT_PENDING,'1'); else localStorage.removeItem(LS_CUSTOM_EVENT_PENDING); }catch(e){}
+}
+// 保存到本地 + 同步到云端。返回 true=云端成功，false=云端失败（本地已保存），null=没有启用云端
+async function syncCustomEventDates(){
+  persistCustomEventDatesLocal();
+  if(!initSupabaseClient()) return null;
+  try{
+    await syncRemoteField('custom_event_dates', customEventDates);
+    setCustomEventDatesPending(false);
+    return true;
+  }catch(e){
+    console.error('同步特别聚会日期失败', e);
+    setCustomEventDatesPending(true);
+    if(isMissingRemoteColumnError(e,'custom_event_dates')){
+      showToast('云端缺少 custom_event_dates 字段，请先在 Supabase 执行修复 SQL');
+    }else{
+      showToast('特别聚会已保存在本机，但云端同步失败，其他设备暂时看不到');
+    }
+    return false;
+  }
+}
+// 启动时：上次同步失败留下的改动，管理员登录后自动补传
+async function flushPendingCustomEventDates(){
+  if(!isAdmin || !isCustomEventDatesPending()) return;
+  const ok=await syncCustomEventDates();
+  if(ok) showToast('☁️ 特别聚会日期已补传到云端');
+}
 // 添加一个特别聚会日期（管理员操作），成功后自动跳转过去查看
 async function addCustomEventDate(){
   if(!isAdmin) return;
@@ -985,15 +1076,16 @@ async function addCustomEventDate(){
   if(!dateStr) return;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)){ showToast('日期格式不对，请填 YYYY-MM-DD'); return; }
   const d=new Date(dateStr+'T00:00:00');
-  if(isNaN(d)){ showToast('日期格式不对'); return; }
+  if(isNaN(d) || toKey(d)!==dateStr){ showToast('日期不存在，请检查后重新输入'); return; }
   if(d.getDay()===0){ showToast('这一天本来就是主日，不用重复添加'); return; }
   const label=(prompt('给这一天起个名字（比如：特别聚会、培灵会）：','特别聚会')||'').trim();
   if(!label) return;
   customEventDates[dateStr]=label;
+  persistCustomEventDatesLocal();
   selectedSunday=d;
   render();
   showToast(`✅ 已添加「${label}」· ${d.getMonth()+1}月${d.getDate()}日`);
-  await syncRemoteField('custom_event_dates', customEventDates);
+  await syncCustomEventDates();
 }
 // 删除一个特别聚会日期（管理员操作）
 async function removeCustomEventDate(dateStr){
@@ -1001,11 +1093,24 @@ async function removeCustomEventDate(dateStr){
   const label=customEventDates[dateStr]||'这个日期';
   if(!confirm(`确定要删除"${label}"吗？该日期已经排好的班/上传的诗歌等数据不会被删除，只是不再出现在日期导航里。`)) return;
   delete customEventDates[dateStr];
+  persistCustomEventDatesLocal();
   // 如果删掉的正好是当前正在查看的日期，跳回最近的主日，避免停留在一个导航条里已经消失的日期上
   if(selectedSunday && toKey(selectedSunday)===dateStr) selectedSunday=getCurrentWeekSunday();
   render();
   showToast('已删除该特别聚会日期');
-  await syncRemoteField('custom_event_dates', customEventDates);
+  await syncCustomEventDates();
+}
+// 日期的完整文字：主日 → "周日"，特别聚会 → "周五 · 培灵会"
+function getDateWeekdayText(d){
+  if(d.getDay()===0) return '周日';
+  const zhWeek=['周日','周一','周二','周三','周四','周五','周六'];
+  const custom=customEventDates[toKey(d)];
+  return custom ? `${zhWeek[d.getDay()]} · ${custom}` : zhWeek[d.getDay()];
+}
+// 当月日期统计文字："4 个主日 + 2 个特别聚会"
+function describeMonthDates(y,m){
+  const n=getSundaysOfMonth(y,m).length, e=getExtraDatesOfMonth(y,m).length;
+  return e ? `${n} 个主日 + ${e} 个特别聚会` : `${n} 个主日`;
 }
 
 // ── State ─────────────────────────────────────────────
@@ -3528,13 +3633,18 @@ function renderShifts(key){
         return `<span class="cvi-chip${onLeave?' cvi-chip-leave':''}">${escapeHtml(p)}${onLeave?'<i class="ti ti-calendar-off cvi-chip-leave-icon" title="已请假"></i>':''}</span>`;
       }).join('');
       const item=document.createElement('div');
-      item.className=`card-view-item${ec}`;
-      item.style.cssText=`background:${col.bg};color:${col.text}`;
+      // 有自定义背景图：图片铺满 + 深色遮罩 + 白字（保证任何图片上文字都看得清）；
+      // 图片下面垫一层分类主色，图片加载失败时也是清晰的深色卡片。没有图片则保持原来的颜色。
+      const bgImg=getRoleBgImage(s.role);
+      item.className=`card-view-item${ec}${bgImg?' has-bg-img':''}`;
+      item.style.cssText=bgImg
+        ? `background:linear-gradient(rgba(0,0,0,0.34),rgba(0,0,0,0.42)),${cssUrl(bgImg)} center/cover no-repeat,${col.badgeBg};color:#fff`
+        : `background:${col.bg};color:${col.text}`;
       if(isAdmin) item.setAttribute('onclick',`openEditDrawer('${s.role}','${key}')`);
       item.innerHTML=`
         <button class="cvi-edit-btn" onclick="event.stopPropagation();openEditDrawer('${s.role}','${key}')">✎ 编辑</button>
         <div class="cvi-header">
-          <div class="cvi-icon"><i class="ti ${col.icon}" style="color:${col.text}"></i></div>
+          <div class="cvi-icon"><i class="ti ${col.icon}" style="color:${bgImg?'#fff':col.text}"></i></div>
           <span class="cvi-role">${s.role}</span>
         </div>
         <div class="cvi-chips">${chips}</div>`;
@@ -3570,7 +3680,8 @@ function render(){
   const zhWeek=['主日','周一','周二','周三','周四','周五','周六'];
   document.getElementById('hdrDay').textContent=headerCollapsed ? ZH_MONTHS[month]+'月份' : `${now.getMonth()+1}月${now.getDate()}日`;
   const wt=document.getElementById('hdrWeekdayTag'); if(wt) wt.textContent = zhWeek[now.getDay()];
-  document.getElementById('hdrInfo').textContent=getSundayCountdownLabel();
+  document.getElementById('hdrInfo').innerHTML=getSundayCountdownHtml();
+  applyHeaderCardStyle();
   document.getElementById('hdrMini').textContent='敬拜排班表';
   const wl=document.getElementById('todayBtn');
   if(wl) wl.textContent=getRelativeWeekLabel(new Date(d));
@@ -4208,7 +4319,8 @@ function getCurrentWeekSunday(){
   }
   return t;
 }
-function getSundayCountdownLabel(){
+// 首页日期卡片上的主日倒计时（返回 HTML：天数用绿色大号数字突出）
+function getSundayCountdownHtml(){
   const cur=getCurrentWeekSunday();
   if(!cur) return '主日';
   const today=new Date(); today.setHours(0,0,0,0);
@@ -4216,7 +4328,7 @@ function getSundayCountdownLabel(){
   const days=Math.round((sunday-today)/(24*60*60*1000));
   if(days<=0) return '今天就是主日';
   if(days===1) return '明天就是主日';
-  return `距主日还有 ${days} 天`;
+  return `距离主日还有 <span class="countdown-num">${days}</span> 天`;
 }
 function getRelativeWeekPrefix(d){
   const cur=getCurrentWeekSunday();
@@ -4266,14 +4378,14 @@ function jumpToMonthOverviewWeek(y,m,dt){
   render();
 }
 function renderMonthOverview(year, month){
-  const sundays=getSundaysOfMonth(year, month);
+  const sundays=getAllScheduleDatesOfMonth(year, month);
   const list=document.getElementById('monthOverviewList');
   const title=document.getElementById('monthOverviewTitle');
   const sub=document.getElementById('monthOverviewSub');
   title.textContent=`📅 ${year}年${ZH_MONTHS[month]}月排班总览`;
-  sub.textContent=`本月共 ${sundays.length} 个主日 · 点击日期可跳转查看`;
+  sub.textContent=`本月共 ${describeMonthDates(year, month)} · 点击日期可跳转查看`;
   if(!sundays.length){
-    list.innerHTML=`<div class="leave-list-empty"><i class="ti ti-calendar-off"></i>该月没有主日</div>`;
+    list.innerHTML=`<div class="leave-list-empty"><i class="ti ti-calendar-off"></i>该月没有排班日期</div>`;
     return;
   }
   list.innerHTML=sundays.map(s=>{
@@ -4307,7 +4419,7 @@ function renderMonthOverview(year, month){
     return `<div class="result-date-group">
       <div class="leave-list-head" style="margin-bottom:8px;padding:0 2px">
         <div>
-          <span style="font-size:13px;font-weight:700;color:${isCur?'var(--primary)':'#1a1a1a'}">${dateLabel}（周日）${isCur?' · 当前':''}</span>
+          <span style="font-size:13px;font-weight:700;color:${isCur?'var(--primary)':'#1a1a1a'}">${dateLabel}（${getDateWeekdayText(s)}）${isCur?' · 当前':''}</span>
           ${preacher?`<span class="leave-list-when" style="margin-left:8px">证道：${escapeHtml(preacher)}</span>`:''}
         </div>
         <button onclick="jumpToMonthOverviewWeek(${s.getFullYear()},${s.getMonth()},${s.getDate()})"
@@ -4347,18 +4459,18 @@ function shiftMonthlyEditor(delta){
 }
 
 function renderMonthlyEditor(){
-  const sundays = getSundaysOfMonth(meYear, meMonth);
+  const sundays = getAllScheduleDatesOfMonth(meYear, meMonth);
   document.getElementById('monthlyEditorTitle').textContent =
     `${meYear}年${ZH_MONTHS[meMonth]}月排班`;
   document.getElementById('monthlyEditorSub').textContent =
-    `本月共 ${sundays.length} 个主日 · 点击角色可直接编辑`;
+    `本月共 ${describeMonthDates(meYear, meMonth)} · 点击角色可直接编辑`;
 
   // copy bar only for admins (always shown in this context)
   document.getElementById('monthlyEditorCopyBar').style.display = isAdmin ? 'flex' : 'none';
 
   const body = document.getElementById('monthlyEditorBody');
   if(!sundays.length){
-    body.innerHTML = `<div class="me-empty"><i class="ti ti-calendar-off"></i>该月没有主日</div>`;
+    body.innerHTML = `<div class="me-empty"><i class="ti ti-calendar-off"></i>该月没有排班日期</div>`;
     return;
   }
 
@@ -4367,7 +4479,7 @@ function renderMonthlyEditor(){
   body.innerHTML = sundays.map((s, idx) => {
     const key = toKey(s);
     const shifts = scheduleData[key] || [];
-    const dateLabel = `${meMonth+1}月${s.getDate()}日（周日）`;
+    const dateLabel = `${meMonth+1}月${s.getDate()}日（${getDateWeekdayText(s)}）`;
     const preacher = getSermonForKey(key).trim();
     const isCur = key === curKey;
     const filledCount = shifts.length;
@@ -4431,7 +4543,7 @@ function renderMonthlyEditor(){
 
 async function meSwapWeek(idx, direction){
   if(!isAdmin) return;
-  const sundays = getSundaysOfMonth(meYear, meMonth);
+  const sundays = getAllScheduleDatesOfMonth(meYear, meMonth);
   const otherIdx = idx + direction;
   if(otherIdx < 0 || otherIdx >= sundays.length) return;
   const keyA = toKey(sundays[idx]);
@@ -4530,10 +4642,10 @@ function meCopyFromLastMonth(){
 
 function meClearMonth(){
   if(!isAdmin) return;
-  const sundays = getSundaysOfMonth(meYear, meMonth);
+  const sundays = getAllScheduleDatesOfMonth(meYear, meMonth);
   const count = sundays.filter(s => scheduleData[toKey(s)]?.length).length;
   if(!count){ alert('本月暂无排班数据'); return; }
-  if(!confirm(`确定要清空${meYear}年${ZH_MONTHS[meMonth]}月的所有排班数据（共 ${count} 周）？此操作不可撤销。`)) return;
+  if(!confirm(`确定要清空${meYear}年${ZH_MONTHS[meMonth]}月的所有排班数据（共 ${count} 天，含特别聚会）？此操作不可撤销。`)) return;
   sundays.forEach(s => delete scheduleData[toKey(s)]);
   renderMonthlyEditor();
   if(typeof syncRemoteField === 'function'){
@@ -4713,14 +4825,14 @@ function renderSermonMonthUI(){
   const container = document.getElementById('sermonMonthList');
   if(!val){ container.innerHTML = '<div style="color:#bbb;font-size:13px;text-align:center;padding:8px 0">请先选择月份</div>'; return; }
   const [y, m] = val.split('-').map(Number);
-  const sundays = getSundaysOfMonth(y, m - 1);
+  const sundays = getAllScheduleDatesOfMonth(y, m - 1);
   if(!sundays.length){ container.innerHTML = '<div style="color:#bbb;font-size:13px;text-align:center;padding:8px 0">该月无周日</div>'; return; }
   container.innerHTML = sundays.map(s => {
     const key = toKey(s);
     const current = sermonByDate[key] || '';
-    const label = `${m}月${s.getDate()}日（周日）`;
+    const label = `${m}月${s.getDate()}日（${getDateWeekdayText(s)}）`;
     return `<div style="display:flex;align-items:center;gap:8px;background:#f8f8f6;border-radius:12px;padding:10px 12px">
-      <span style="font-size:12px;font-weight:500;color:#888;min-width:100px;flex-shrink:0">${label}</span>
+      <span style="font-size:12px;font-weight:500;color:#888;min-width:100px;max-width:45%;flex-shrink:0">${label}</span>
       <input value="${current}" placeholder="证道人姓名"
         id="sermon-inp-${key}"
         style="flex:1;padding:6px 10px;border:1.5px solid rgba(0,0,0,0.1);border-radius:20px;font-size:13px;outline:none;font-family:inherit"
@@ -4875,6 +4987,31 @@ function openSettings() {
     bulkReminderSec.style.display = isAdmin ? '' : 'none';
     if (isAdmin) loadReminderSubscribersList();
   }
+  // 教会主页（church.html）logo / 横幅设置：仅管理员可见
+  const churchSiteSec = document.getElementById('churchSiteSection');
+  if (churchSiteSec) {
+    churchSiteSec.style.display = isAdmin ? '' : 'none';
+    if (isAdmin) {
+      const logoPrev = document.getElementById('churchLogoPreview');
+      const bannerPrev = document.getElementById('churchBannerPreview');
+      if (logoPrev) logoPrev.src = churchSite.logoUrl || '';
+      if (bannerPrev) bannerPrev.src = churchSite.bannerUrl || '';
+      if (logoPrev) logoPrev.style.display = churchSite.logoUrl ? '' : 'none';
+      if (bannerPrev) bannerPrev.style.display = churchSite.bannerUrl ? '' : 'none';
+    }
+  }
+  // 首页日期卡片背景图设置：仅管理员可见
+  const headerBgSec = document.getElementById('headerBgSection');
+  if (headerBgSec) {
+    headerBgSec.style.display = isAdmin ? '' : 'none';
+    if (isAdmin) renderHeaderBgSettings();
+  }
+  // 排班分类卡片背景图设置：仅管理员可见
+  const roleBgSec = document.getElementById('roleBgSection');
+  if (roleBgSec) {
+    roleBgSec.style.display = isAdmin ? '' : 'none';
+    if (isAdmin) renderRoleBgSettings();
+  }
   document.getElementById('settingsOverlay').classList.add('open');
 }
 
@@ -5019,7 +5156,7 @@ function renderDesktopMonthCard(date) {
   const month = date.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month + 1, 0).getDate();
-  const sundaySet = new Set(getSundaysOfMonth(year, month).map(d => d.getDate()));
+  const sundaySet = new Set(getAllScheduleDatesOfMonth(year, month).map(d => d.getDate()));
   const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push('<span class="desktop-mini-day placeholder">·</span>');
@@ -5037,7 +5174,7 @@ function renderDesktopMonthCard(date) {
       <div class="desktop-calendar-head">
         <div>
           <div class="desktop-calendar-title">${year} 年 ${month + 1} 月</div>
-          <div class="desktop-calendar-sub">带圆点的日期为主日</div>
+          <div class="desktop-calendar-sub">带圆点的日期为主日或特别聚会</div>
         </div>
         <button class="view-toggle-btn" onclick="openMonthPicker()" title="选择月份"><i class="ti ti-calendar-month"></i></button>
       </div>
@@ -5591,6 +5728,127 @@ function closeSaturdayReminder(e){
   if(!e || e.target===document.getElementById('saturdayReminderOverlay')){
     document.getElementById('saturdayReminderOverlay').classList.remove('open');
   }
+}
+
+// ── 每日反馈收集弹窗 ──────────────────────────────────
+// LS_FEEDBACK_SHOWN_DATE：记录"今天"是否已经弹出过（每天第一次进入才弹）
+// LS_FEEDBACK_DISABLED：用户勾选"今天不再显示此反馈弹窗"并关闭/提交后，
+//                        代表主动关闭了这个每天弹出的提醒，之后不再自动弹出
+//                        （除非清除浏览器数据，相当于重新订阅）
+const LS_FEEDBACK_SHOWN_DATE = 'churchFeedbackShownDate';
+const LS_FEEDBACK_DISABLED = 'churchFeedbackDisabled';
+let feedbackSelectedMood = null;
+let feedbackSelectedTips = [];
+
+function checkFeedbackModal(){
+  try{
+    if(localStorage.getItem(LS_FEEDBACK_DISABLED) === '1') return;
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+    if(localStorage.getItem(LS_FEEDBACK_SHOWN_DATE) === todayKey) return;
+    localStorage.setItem(LS_FEEDBACK_SHOWN_DATE, todayKey);
+  }catch(e){}
+  // 稍作延迟再弹出，避免和登录框/主日提醒等首屏弹窗抢焦点；
+  // 如果此刻已经有其他弹窗打开，就跳过（下一次进入页面时会正常判断）
+  setTimeout(() => {
+    const anyOpenModal = document.querySelector('.modal-overlay.open');
+    if(anyOpenModal) return;
+    const overlay = document.getElementById('feedbackOverlay');
+    if(overlay) overlay.classList.add('open');
+  }, 1200);
+}
+
+function applyFeedbackDisableChoice(){
+  try{
+    const cb = document.getElementById('feedbackDisableToggle');
+    if(cb && cb.checked){
+      localStorage.setItem(LS_FEEDBACK_DISABLED, '1');
+    }
+  }catch(e){}
+}
+
+function closeFeedbackModal(e){
+  const overlay = document.getElementById('feedbackOverlay');
+  if(!overlay) return;
+  if(!e || e.target === overlay){
+    applyFeedbackDisableChoice();
+    overlay.classList.remove('open');
+  }
+}
+
+function selectFeedbackMood(mood){
+  feedbackSelectedMood = mood;
+  document.querySelectorAll('.feedback-mood-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.mood === mood);
+  });
+}
+
+function updateFeedbackCharCount(){
+  const el = document.getElementById('feedbackMessageInput');
+  const countEl = document.getElementById('feedbackCharCount');
+  if(el && countEl) countEl.textContent = `${el.value.length}/200`;
+}
+
+function toggleFeedbackTip(el, label){
+  const idx = feedbackSelectedTips.indexOf(label);
+  if(idx >= 0){
+    feedbackSelectedTips.splice(idx, 1);
+    el.classList.remove('selected');
+  }else{
+    feedbackSelectedTips.push(label);
+    el.classList.add('selected');
+  }
+}
+
+function resetFeedbackForm(){
+  feedbackSelectedMood = null;
+  feedbackSelectedTips = [];
+  document.querySelectorAll('.feedback-mood-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.feedback-tip-chip').forEach(c => c.classList.remove('selected'));
+  const msgEl = document.getElementById('feedbackMessageInput');
+  if(msgEl) msgEl.value = '';
+  updateFeedbackCharCount();
+  const cb = document.getElementById('feedbackDisableToggle');
+  if(cb) cb.checked = false;
+}
+
+async function submitFeedback(){
+  if(!feedbackSelectedMood){
+    showToast('请先选择你今天的使用感受');
+    return;
+  }
+  const msgEl = document.getElementById('feedbackMessageInput');
+  const message = msgEl ? msgEl.value.trim() : '';
+  const btn = document.getElementById('feedbackSubmitBtn');
+  if(btn){ btn.disabled = true; btn.textContent = '提交中...'; }
+
+  const payload = {
+    mood: feedbackSelectedMood,
+    message: message,
+    tags: feedbackSelectedTips,
+    page_path: location.pathname || '/',
+    user_agent: navigator.userAgent || '',
+    visitor_id: (typeof getVisitorId === 'function') ? getVisitorId() : '',
+  };
+
+  try{
+    if(initSupabaseClient()){
+      const { error } = await supabaseClient.from(SUPABASE_CONFIG.feedbackTable).insert(payload);
+      if(error) throw error;
+    }
+    showToast('感谢你的反馈！我们会认真参考 🙏');
+  }catch(e){
+    console.error('反馈提交失败', e);
+    showToast('提交失败，请检查网络后重试');
+    if(btn){ btn.disabled = false; btn.textContent = '提交反馈'; }
+    return;
+  }
+
+  applyFeedbackDisableChoice();
+  const overlay = document.getElementById('feedbackOverlay');
+  if(overlay) overlay.classList.remove('open');
+  if(btn){ btn.disabled = false; btn.textContent = '提交反馈'; }
+  resetFeedbackForm();
 }
 function updateLeaveBadge() {
   // Leave entry now lives in Settings (guests) / the admin dropdown menu (admins) instead of
@@ -6251,6 +6509,7 @@ const SUPABASE_CONFIG = {
   songBucket: 'song-images',
   visitsTable: 'site_visits',
   loginLogsTable: 'login_logs',
+  feedbackTable: 'site_feedback',
 };
 
 let supabaseClient = null;
@@ -6365,6 +6624,7 @@ function getSharedAppStateSnapshot() {
     song_lib_categories: normalizeSongLibCategoryList(songLibCategories),
     song_lib_songbooks: normalizeSongLibSongbookList(songLibSongbooks),
     custom_event_dates: normalizeSimpleMap(customEventDates),
+    church_site: normalizeSimpleMap(churchSite),
   };
 }
 
@@ -6376,7 +6636,14 @@ function applyRemoteAppState(row) {
   sermonPassagesByDate = normalizeSimpleMap(row?.sermon_passages_by_date || sermonPassagesByDate);
   sermonThemesByDate = normalizeSimpleMap(row?.sermon_themes_by_date || sermonThemesByDate);
   sermonAudioByDate = normalizeSimpleMap(row?.sermon_audio_by_date || sermonAudioByDate);
-  customEventDates = normalizeSimpleMap(row?.custom_event_dates || customEventDates);
+  // 云端有这个字段就以云端为准；没有（字段缺失/为空）或本机有未同步成功的改动时，保留本机数据，避免刚添加的特别聚会被冲掉
+  if (row && row.custom_event_dates && typeof row.custom_event_dates === 'object' && !isCustomEventDatesPending()) {
+    const remoteEvents = normalizeSimpleMap(row.custom_event_dates);
+    if (Object.keys(remoteEvents).length || !Object.keys(customEventDates).length) customEventDates = remoteEvents;
+  }
+  persistCustomEventDatesLocal();
+  churchSite = { logoUrl: '', bannerUrl: '', roleBgImages: {}, headerBgUrl: '', headerTextTone: 'dark', ...normalizeSimpleMap(row?.church_site || churchSite) };
+  if (!churchSite.roleBgImages || typeof churchSite.roleBgImages !== 'object') churchSite.roleBgImages = {};
   if (row && row.leave_requests !== undefined) {
     leaveRequests = normalizeLeaveRequests(row.leave_requests);
     persistLeaveRequests();
@@ -6672,6 +6939,275 @@ async function dataUrlToBlob(dataUrl) {
   return await res.blob();
 }
 
+// ── 教会主页（church.html）logo / 横幅图片上传 ────────────
+// 复用现成的 song-images 存储桶（跟诗歌谱子图片共用同一个已经配置好公开访问的桶），
+// 只是单独放在 site/ 这个子目录下，不需要额外去 Supabase 后台新建桶。
+async function uploadChurchSiteImage(file, kind) {
+  if (!initSupabaseClient()) throw new Error('尚未连接 Supabase，无法上传');
+  const mime = file.type || 'image/png';
+  const rawExt = (mime.split('/')[1] || file.name.split('.').pop() || 'png').toLowerCase();
+  const ext = rawExt === 'jpeg' ? 'jpg' : rawExt;
+  const filePath = `site/${kind}_${Date.now()}.${ext}`;
+  const { error } = await supabaseClient.storage
+    .from(SUPABASE_CONFIG.songBucket)
+    .upload(filePath, file, { contentType: mime, upsert: true });
+  if (error) throw error;
+  const { data } = supabaseClient.storage
+    .from(SUPABASE_CONFIG.songBucket)
+    .getPublicUrl(filePath);
+  return data.publicUrl;
+}
+
+async function handleChurchLogoSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('churchLogoPreview');
+  try {
+    if (preview) preview.style.opacity = '0.4';
+    const url = await uploadChurchSiteImage(file, 'logo');
+    churchSite.logoUrl = url;
+    await syncRemoteField('church_site', churchSite);
+    if (preview) { preview.src = url; preview.style.opacity = '1'; }
+    showToast('✅ Logo 已更新');
+  } catch (e) {
+    if (preview) preview.style.opacity = '1';
+    showToast('上传失败：' + (e?.message || '请重试'));
+  } finally {
+    input.value = '';
+  }
+}
+
+async function handleChurchBannerSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('churchBannerPreview');
+  try {
+    if (preview) preview.style.opacity = '0.4';
+    const url = await uploadChurchSiteImage(file, 'banner');
+    churchSite.bannerUrl = url;
+    await syncRemoteField('church_site', churchSite);
+    if (preview) { preview.src = url; preview.style.opacity = '1'; }
+    showToast('✅ 欢迎横幅背景图已更新');
+  } catch (e) {
+    if (preview) preview.style.opacity = '1';
+    showToast('上传失败：' + (e?.message || '请重试'));
+  } finally {
+    input.value = '';
+  }
+}
+
+// ── 首页顶部日期卡片背景图（管理员在"设置"里上传） ──────────────────────────
+// 图片存到 song-images 桶的 site/ 子目录，URL、文字色调、标语都记在 churchSite 里，随 church_site 字段同步到云端。
+async function saveChurchSiteField(patch, rollbackKeys) {
+  const before = {};
+  rollbackKeys.forEach(k => { before[k] = churchSite[k]; });
+  Object.assign(churchSite, patch);
+  try {
+    await syncRemoteField('church_site', churchSite);
+  } catch (e) {
+    // 同步失败：还原，避免本地看着改了、别人却看不到
+    rollbackKeys.forEach(k => { if (before[k] === undefined) delete churchSite[k]; else churchSite[k] = before[k]; });
+    throw e;
+  }
+}
+
+function renderHeaderBgSettings() {
+  const url = getHeaderBgImage();
+  const tone = getHeaderTextTone();
+  const preview = document.getElementById('headerBgPreview');
+  if (preview) {
+    preview.className = 'header-bg-preview' + (url ? ' has-img' : '') + (tone === 'light' ? ' tone-light' : '');
+    preview.style.backgroundImage = url ? cssUrl(url) : '';
+    preview.innerHTML = url ? '<span>9月21日</span>' : '<span class="header-bg-preview-empty">未设置 · 使用默认样式</span>';
+  }
+  const btns = document.getElementById('headerBgBtns');
+  if (btns) {
+    btns.innerHTML = `
+      <label class="btn-cancel role-bg-btn"><i class="ti ti-upload"></i>${url ? '更换背景图' : '上传背景图'}
+        <input type="file" accept="image/*" style="display:none" onchange="handleHeaderBgSelect(this)">
+      </label>
+      ${url ? '<button type="button" class="btn-cancel role-bg-btn" onclick="clearHeaderBg()"><i class="ti ti-refresh"></i>恢复默认</button>' : ''}`;
+  }
+  document.querySelectorAll('#headerToneSeg button').forEach(b => b.classList.toggle('active', b.dataset.tone === tone));
+  const input = document.getElementById('headerSloganInput');
+  if (input && document.activeElement !== input) {
+    input.value = typeof churchSite.headerSlogan === 'string' ? churchSite.headerSlogan : DEFAULT_HEADER_SLOGAN;
+  }
+}
+
+async function handleHeaderBgSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.type && !file.type.startsWith('image/')) { showToast('请选择图片文件'); input.value = ''; return; }
+  const preview = document.getElementById('headerBgPreview');
+  try {
+    if (preview) preview.style.opacity = '0.4';
+    // 桌面端卡片很宽，这里比分类卡片多留一些分辨率（最宽 1600px）
+    const blob = await compressImageForCard(file, '#E7F7EF', 1600, 0.85);
+    const url = await uploadChurchSiteImage(blob, 'headerbg');
+    await saveChurchSiteField({ headerBgUrl: url }, ['headerBgUrl']);
+    renderHeaderBgSettings();
+    render();
+    showToast('✅ 日期卡片背景已更新');
+  } catch (e) {
+    showToast('上传失败：' + (e?.message || '请重试'));
+  } finally {
+    if (preview) preview.style.opacity = '1';
+    input.value = '';
+  }
+}
+
+async function clearHeaderBg() {
+  if (!getHeaderBgImage()) return;
+  try {
+    await saveChurchSiteField({ headerBgUrl: '' }, ['headerBgUrl']);
+    renderHeaderBgSettings();
+    render();
+    showToast('已恢复日期卡片默认样式');
+  } catch (e) {
+    showToast('操作失败：' + (e?.message || '请重试'));
+  }
+}
+
+async function setHeaderTextTone(tone) {
+  const next = tone === 'light' ? 'light' : 'dark';
+  if (getHeaderTextTone() === next) return;
+  try {
+    await saveChurchSiteField({ headerTextTone: next }, ['headerTextTone']);
+    renderHeaderBgSettings();
+    render();
+  } catch (e) {
+    renderHeaderBgSettings();
+    showToast('操作失败：' + (e?.message || '请重试'));
+  }
+}
+
+async function saveHeaderSlogan(value) {
+  const text = String(value || '').trim();
+  try {
+    await saveChurchSiteField({ headerSlogan: text }, ['headerSlogan']);
+    render();
+    showToast(text ? '✅ 标语已保存' : '已隐藏标语');
+  } catch (e) {
+    renderHeaderBgSettings();
+    showToast('操作失败：' + (e?.message || '请重试'));
+  }
+}
+
+// ── 排班分类卡片背景图（管理员在"设置"里为主领/伴唱/键盘…各自上传） ──────────
+// 图片存到 song-images 桶的 site/ 子目录（跟 logo、横幅同一处），URL 记在 churchSite.roleBgImages[分类名] 里，
+// 跟着 church_site 字段同步到云端，所有人打开排班页都能看到；没上传的分类保持原来的颜色。
+
+// 上传前先压缩：手机原图动辄 3~8MB，卡片最宽也就一屏宽，缩到 1000px 宽、JPEG 82% 足够清晰，加载也快。
+// 透明背景会垫上该分类的主色；读取/压缩失败时直接用原图，不挡住上传。
+function compressImageForCard(file, fillColor, maxW = 1000, quality = 0.82) {
+  return new Promise(resolve => {
+    if (!file.type || file.type === 'image/gif' || file.type === 'image/svg+xml') { resolve(file); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxW / (img.naturalWidth || maxW));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = fillColor || '#888';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(url);
+          // 压缩后更小、或已经缩小过尺寸就用压缩结果，否则（小图、压缩反而变大）保留原文件
+          resolve(blob && (scale < 1 || blob.size < file.size) ? blob : file);
+        }, 'image/jpeg', quality);
+      } catch (e) { URL.revokeObjectURL(url); resolve(file); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+function renderRoleBgSettings() {
+  const wrap = document.getElementById('roleBgList');
+  if (!wrap) return;
+  wrap.innerHTML = ROLES.map(role => {
+    const col = roleColors[role] || { bg: '#f0f0ee', text: '#444', badgeBg: '#888', badgeText: '#fff', icon: 'ti-user' };
+    const img = getRoleBgImage(role);
+    const code = encodeURIComponent(role);
+    const thumbStyle = img
+      ? `background:linear-gradient(rgba(0,0,0,0.34),rgba(0,0,0,0.42)),${cssUrl(img)} center/cover no-repeat,${col.badgeBg};color:#fff`
+      : `background:${col.bg};color:${col.text}`;
+    return `<div class="role-bg-row">
+      <div class="role-bg-thumb" id="roleBgThumb-${code}" style="${escapeHtml(thumbStyle)}">
+        <i class="ti ${col.icon}"></i><span>${escapeHtml(role)}</span>
+      </div>
+      <div class="role-bg-actions">
+        <div class="role-bg-state">${img ? '已设置背景图' : '默认颜色'}</div>
+        <div class="role-bg-btns">
+          <label class="btn-cancel role-bg-btn">
+            <i class="ti ti-upload"></i>${img ? '更换' : '上传'}
+            <input type="file" accept="image/*" style="display:none" onchange="handleRoleBgSelect('${code}', this)">
+          </label>
+          ${img ? `<button type="button" class="btn-cancel role-bg-btn" onclick="clearRoleBg('${code}')"><i class="ti ti-refresh"></i>恢复默认</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function handleRoleBgSelect(roleCode, input) {
+  const role = decodeURIComponent(roleCode);
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.type && !file.type.startsWith('image/')) {
+    showToast('请选择图片文件');
+    input.value = '';
+    return;
+  }
+  const thumb = document.getElementById('roleBgThumb-' + roleCode);
+  const prev = getRoleBgImage(role);
+  try {
+    if (thumb) thumb.style.opacity = '0.4';
+    const col = roleColors[role];
+    const blob = await compressImageForCard(file, col && col.badgeBg);
+    const idx = ROLES.indexOf(role);
+    const url = await uploadChurchSiteImage(blob, `rolebg_${idx >= 0 ? idx : 'x'}`);
+    churchSite.roleBgImages = { ...(churchSite.roleBgImages || {}), [role]: url };
+    await syncRemoteField('church_site', churchSite);
+    renderRoleBgSettings();
+    render();
+    showToast(`✅ 「${role}」卡片背景已更新`);
+  } catch (e) {
+    // 上传或同步失败：还原成上传前的状态，避免本地看着改了、别人却看不到
+    const map = { ...(churchSite.roleBgImages || {}) };
+    if (prev) map[role] = prev; else delete map[role];
+    churchSite.roleBgImages = map;
+    if (thumb) thumb.style.opacity = '1';
+    showToast('上传失败：' + (e?.message || '请重试'));
+  } finally {
+    input.value = '';
+  }
+}
+
+async function clearRoleBg(roleCode) {
+  const role = decodeURIComponent(roleCode);
+  const prev = getRoleBgImage(role);
+  if (!prev) return;
+  const map = { ...(churchSite.roleBgImages || {}) };
+  delete map[role];
+  churchSite.roleBgImages = map;
+  try {
+    await syncRemoteField('church_site', churchSite);
+    renderRoleBgSettings();
+    render();
+    showToast(`已恢复「${role}」卡片默认颜色`);
+  } catch (e) {
+    churchSite.roleBgImages = { ...map, [role]: prev };
+    showToast('操作失败：' + (e?.message || '请重试'));
+  }
+}
+
 async function uploadSongDataUrl(serviceDate, dataUrl, index) {
   if (!initSupabaseClient()) return dataUrl;
   const blob = await dataUrlToBlob(dataUrl);
@@ -6907,6 +7443,7 @@ async function bootstrapApp() {
   loadSermonAudio();
   loadSermonNotes();
   loadSermonCollapsed();
+  loadCustomEventDatesLocal();
   loadLeaveRequests();
   loadSongLibrary();
   loadSongLibFavorites();
@@ -6921,6 +7458,7 @@ async function bootstrapApp() {
     try {
       await loadRemoteAppState();
       await syncAuthState();
+      await flushPendingCustomEventDates();
       await checkManageLinkFromUrl();
     } catch (e) {
       console.error('Supabase 初始化失败，已回退到本地模式', e);
@@ -6934,6 +7472,7 @@ async function bootstrapApp() {
   syncTopbarSpacer();
   checkSundayReminder();
   checkSaturdayReminder();
+  checkFeedbackModal();
   checkSongShareLinkFromUrl();
 }
 

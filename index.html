@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+  <style type="text/css">
+   @font-face {
+       font-family: "MyLocalFont";
+       src: url("liguofu.ttf") format("truetype");
+       font-weight: normal;
+       font-style: normal;
+       font-display: swap;
+   }
+        
+</style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title id="pageTitleTag">敬拜排班表</title>
@@ -90,29 +100,31 @@
 
 <!-- ── Header ────────────────────────────────────────── -->
 <div class="header-card" id="headerCard">
+  <div class="header-card-bg" id="headerCardBg" aria-hidden="true"></div>
   <div class="date-info-card">
     <div class="header-card-deco" aria-hidden="true"><img src="https://raw.githubusercontent.com/duijiao/schedule/6491a5d0398a45434e4b0cbef066ec70df3dabe9/time.png" alt=""></div>
+    <div class="header-slogan" id="hdrSlogan" aria-hidden="true"></div>
     <div class="date-info-top" onclick="openMonthPicker()" title="选择月份">
-      <div class="date-info-icon"><i class="ti ti-calendar-event"></i></div>
       <div class="header-date">
-        <div class="today-label">今天</div>
-        <div class="date-info-date-row">
-          <div class="day-num" id="hdrDay"></div>
-          <span class="date-info-weekday-tag" id="hdrWeekdayTag">主日</span>
+        <div class="today-label"><i class="ti ti-calendar"></i>今天</div>
+        <div class="date-info-block">
+          <div class="date-info-date-row">
+            <div class="day-num" id="hdrDay"></div>
+            <span class="date-info-weekday-tag"><span id="hdrWeekdayTag">主日</span><i class="ti ti-chevron-right"></i></span>
+          </div>
+          <div class="header-date-hint">
+            <span class="day-info-text" id="hdrInfo"></span>
+          </div>
+          <div class="header-mini" id="hdrMini"></div>
         </div>
-        <div class="header-date-hint">
-          <span class="day-info-text" id="hdrInfo"></span>
-          <i class="ti ti-chevron-down chevron-icon"></i>
-        </div>
-        <div class="header-mini" id="hdrMini"></div>
       </div>
     </div>
   </div>
   <div class="header-collapsible">
     <div class="week-nav-wrap">
-      <button class="nav-arrow" onclick="shiftMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+      <button class="nav-arrow" onclick="shiftMonth(-1)" aria-label="上个月"><i class="ti ti-chevron-left"></i></button>
       <div class="week-nav" id="sundayNav"></div>
-      <button class="nav-arrow" onclick="shiftMonth(1)"><i class="ti ti-chevron-right"></i></button>
+      <button class="nav-arrow" onclick="shiftMonth(1)" aria-label="下个月"><i class="ti ti-chevron-right"></i></button>
     </div>
   </div>
   <div class="collapse-tab" onclick="toggleCollapse()">
@@ -468,6 +480,59 @@
   </div>
 </div>
 
+<!-- ── 每日反馈收集弹窗 ──────────────────────────────── -->
+<div class="modal-overlay" id="feedbackOverlay" onclick="closeFeedbackModal(event)">
+  <div class="feedback-modal modal-has-close-btn" onclick="event.stopPropagation()">
+    <button class="modal-close-btn" onclick="closeFeedbackModal()" aria-label="关闭"><i class="ti ti-x"></i></button>
+    <div class="feedback-icon-wrap">
+      <i class="ti ti-heart"></i>
+      <i class="ti ti-leaf fb-leaf fb-leaf-l"></i>
+      <i class="ti ti-leaf fb-leaf fb-leaf-r"></i>
+    </div>
+    <div class="feedback-title">帮我们把网页做得更好</div>
+    <div class="feedback-sub">感谢你每天的使用！<br>为了给大家带来更好的体验，我们想听听你的意见和建议。</div>
+
+    <div class="feedback-section-label">你今天使用起来感觉怎么样？</div>
+    <div class="feedback-mood-row" id="feedbackMoodRow">
+      <button type="button" class="feedback-mood-btn" data-mood="good" onclick="selectFeedbackMood('good')">
+        <i class="ti ti-mood-smile"></i><span>很好</span>
+      </button>
+      <button type="button" class="feedback-mood-btn" data-mood="neutral" onclick="selectFeedbackMood('neutral')">
+        <i class="ti ti-mood-neutral"></i><span>一般</span>
+      </button>
+      <button type="button" class="feedback-mood-btn" data-mood="bad" onclick="selectFeedbackMood('bad')">
+        <i class="ti ti-mood-sad"></i><span>有问题</span>
+      </button>
+    </div>
+
+    <div class="feedback-section-label">你希望改进什么？（可选）</div>
+    <div class="feedback-textarea-wrap">
+      <textarea class="feedback-textarea" id="feedbackMessageInput" maxlength="200" placeholder="例如：希望增加某个功能，或强化某个页面…" oninput="updateFeedbackCharCount()"></textarea>
+      <div class="feedback-char-count" id="feedbackCharCount">0/200</div>
+    </div>
+
+    <div class="feedback-tips-box">
+      <div class="feedback-tips-head"><i class="ti ti-bulb"></i>可以告诉我们：</div>
+      <div class="feedback-tips-grid" id="feedbackTipsGrid">
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'哪个功能不好用')">哪个功能不好用</div>
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'希望增加什么功能')">希望增加什么功能</div>
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'哪个地方看不懂')">哪个地方看不懂</div>
+        <div class="feedback-tip-chip" onclick="toggleFeedbackTip(this,'页面哪里需要优化')">页面哪里需要优化</div>
+      </div>
+    </div>
+
+    <label class="feedback-remember-row">
+      <input type="checkbox" id="feedbackDisableToggle">
+      <span>今天不再显示此反馈弹窗</span>
+    </label>
+
+    <div class="feedback-actions">
+      <button type="button" class="feedback-btn-secondary" onclick="closeFeedbackModal()">稍后再说</button>
+      <button type="button" class="feedback-btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">提交反馈</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="monthOverviewOverlay" onclick="closeMonthOverview(event)">
   <div class="bookmarks-panel modal-has-close-btn" onclick="event.stopPropagation()">
     <button class="modal-close-btn" onclick="closeMonthOverview()" aria-label="关闭"><i class="ti ti-x"></i></button>
@@ -628,6 +693,76 @@
           </div>
           <div id="reminderSubscribersListWrap" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- 教会主页 church.html 素材上传（仅管理员） -->
+    <div class="settings-section admin-only-section" id="churchSiteSection" style="display:none">
+      <div class="settings-section-title">⛪ 教会主页图片（管理员）</div>
+      <div class="settings-card" style="padding:12px 16px;display:flex;flex-direction:column;gap:14px;">
+        <div style="font-size:12px;color:#999;line-height:1.6">
+          这里上传的图片会显示在教会公开主页（church.html）上，本周证道信息和经文会自动从排班数据里读取，不用在这里另外填写。
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <img id="churchLogoPreview" src="" style="width:52px;height:52px;border-radius:14px;object-fit:cover;background:#f2f2f0;display:none;flex-shrink:0" alt="">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:4px">头部 Logo</div>
+            <label class="btn-cancel" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;cursor:pointer">
+              <i class="ti ti-upload" style="font-size:14px"></i>上传 / 更换
+              <input type="file" accept="image/*" style="display:none" onchange="handleChurchLogoSelect(this)">
+            </label>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <img id="churchBannerPreview" src="" style="width:80px;height:52px;border-radius:10px;object-fit:cover;background:#f2f2f0;display:none;flex-shrink:0" alt="">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:4px">欢迎横幅背景图</div>
+            <label class="btn-cancel" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;cursor:pointer">
+              <i class="ti ti-upload" style="font-size:14px"></i>上传 / 更换
+              <input type="file" accept="image/*" style="display:none" onchange="handleChurchBannerSelect(this)">
+            </label>
+          </div>
+        </div>
+        <a href="church.html" target="_blank" style="font-size:12.5px;color:var(--primary);font-weight:600;text-decoration:none">
+          <i class="ti ti-external-link" style="font-size:13px;margin-right:3px"></i>预览教会主页
+        </a>
+      </div>
+    </div>
+
+    <!-- 首页顶部日期卡片背景图（仅管理员） -->
+    <div class="settings-section admin-only-section" id="headerBgSection" style="display:none">
+      <div class="settings-section-title">🗓️ 首页日期卡片背景（管理员）</div>
+      <div class="settings-card" style="padding:12px 16px;display:flex;flex-direction:column;gap:12px;">
+        <div style="font-size:12px;color:#999;line-height:1.6">
+          首页顶部「今天 · 日期 · 距离主日还有 N 天」这张卡片的背景图，所有人打开首页都会看到。没上传时保持原来的样子，随时可以恢复默认。
+        </div>
+        <div class="header-bg-preview" id="headerBgPreview"></div>
+        <div class="role-bg-btns" id="headerBgBtns"></div>
+        <div class="header-bg-field">
+          <div class="header-bg-field-label">文字颜色</div>
+          <div class="header-tone-seg" id="headerToneSeg">
+            <button type="button" data-tone="dark" onclick="setHeaderTextTone('dark')">深色文字</button>
+            <button type="button" data-tone="light" onclick="setHeaderTextTone('light')">浅色文字</button>
+          </div>
+          <div class="header-bg-field-desc">图片偏亮选「深色文字」，图片偏暗选「浅色文字」。</div>
+        </div>
+        <div class="header-bg-field">
+          <div class="header-bg-field-label">卡片标语（上传背景图后显示）</div>
+          <input class="form-input" id="headerSloganInput" type="text" maxlength="24" autocomplete="off"
+                 placeholder="与主同行 每天更近一步" onchange="saveHeaderSlogan(this.value)">
+          <div class="header-bg-field-desc">空格处会自动换行；清空并保存则不显示标语。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 排班分类卡片背景图（仅管理员） -->
+    <div class="settings-section admin-only-section" id="roleBgSection" style="display:none">
+      <div class="settings-section-title">🖼️ 排班分类卡片背景（管理员）</div>
+      <div class="settings-card" style="padding:12px 16px;display:flex;flex-direction:column;gap:12px;">
+        <div style="font-size:12px;color:#999;line-height:1.6">
+          为「主领、伴唱、键盘…」每个分类的排班卡片单独设置背景图，所有人打开排班页都会看到。没上传的分类保持原来的颜色，随时可以恢复默认。
+        </div>
+        <div id="roleBgList"></div>
       </div>
     </div>
 
