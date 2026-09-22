@@ -5811,7 +5811,6 @@ function renderGlobalNoticeModal(data){
 
   const readCb = document.getElementById('gnMarkReadToggle');
   if(readCb) readCb.checked = false;
-  if(typeof resetGlobalNoticeFeedbackForm === 'function') resetGlobalNoticeFeedbackForm();
 }
 
 function checkGlobalNoticeModal(){
@@ -5968,85 +5967,6 @@ async function toggleGlobalNoticeEnabled(checked){
     if(toggle) toggle.checked = prevEnabled;
     showToast('操作失败：请确认已在 Supabase 中新建 global_notice 列');
   }
-}
-
-// ── 内嵌在通知弹窗里的用户反馈小模块（原"每日反馈弹窗"的反馈收集内容）──
-let feedbackSelectedMood = null;
-let feedbackSelectedTips = [];
-
-function selectFeedbackMood(mood){
-  feedbackSelectedMood = mood;
-  document.querySelectorAll('.feedback-mood-btn').forEach(btn => {
-    btn.classList.toggle('selected', btn.dataset.mood === mood);
-  });
-}
-
-function updateFeedbackCharCount(){
-  const el = document.getElementById('feedbackMessageInput');
-  const countEl = document.getElementById('feedbackCharCount');
-  if(el && countEl) countEl.textContent = `${el.value.length}/200`;
-}
-
-function toggleFeedbackTip(el, label){
-  const idx = feedbackSelectedTips.indexOf(label);
-  if(idx >= 0){
-    feedbackSelectedTips.splice(idx, 1);
-    el.classList.remove('selected');
-  }else{
-    feedbackSelectedTips.push(label);
-    el.classList.add('selected');
-  }
-}
-
-function resetGlobalNoticeFeedbackForm(){
-  feedbackSelectedMood = null;
-  feedbackSelectedTips = [];
-  document.querySelectorAll('.feedback-mood-btn').forEach(b => b.classList.remove('selected'));
-  document.querySelectorAll('.feedback-tip-chip').forEach(c => c.classList.remove('selected'));
-  const msgEl = document.getElementById('feedbackMessageInput');
-  if(msgEl) msgEl.value = '';
-  updateFeedbackCharCount();
-}
-
-async function submitGlobalNoticeFeedbackIfAny(){
-  if(!feedbackSelectedMood) return;
-  const msgEl = document.getElementById('feedbackMessageInput');
-  const message = msgEl ? msgEl.value.trim() : '';
-  const payload = {
-    mood: feedbackSelectedMood,
-    message: message,
-    tags: feedbackSelectedTips,
-    page_path: location.pathname || '/',
-    user_agent: navigator.userAgent || '',
-    visitor_id: (typeof getVisitorId === 'function') ? getVisitorId() : '',
-  };
-  try{
-    if(initSupabaseClient()){
-      const { error } = await supabaseClient.from(SUPABASE_CONFIG.feedbackTable).insert(payload);
-      if(error) throw error;
-    }
-    showToast('感谢你的反馈！我们会认真参考 🙏');
-  }catch(e){
-    console.error('反馈提交失败', e);
-    showToast('通知已关闭，但反馈提交失败，请检查网络');
-  }
-}
-
-// "我知道了"：如果顺手选了使用感受，一并把反馈提交掉，再关闭通知
-async function confirmGlobalNotice(evt){
-  if(gnPreviewMode){
-    resetGlobalNoticeFeedbackForm();
-    closeGlobalNoticeModal(null);
-    return;
-  }
-  const btn = evt?.currentTarget;
-  if(btn) btn.disabled = true;
-  await submitGlobalNoticeFeedbackIfAny();
-  markGlobalNoticeSeen();
-  const overlay = document.getElementById('globalNoticeOverlay');
-  if(overlay) overlay.classList.remove('open');
-  resetGlobalNoticeFeedbackForm();
-  if(btn) btn.disabled = false;
 }
 
 // ── 管理员：查看用户反馈列表 ──────────────────────────
