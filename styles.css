@@ -2644,6 +2644,19 @@ body.a11y-mode .leave-modal { max-width: 480px; }
 .log-row-tag.ok { background: var(--primary-light); color: var(--primary); }
 .log-row-tag.fail { background: #fdeaea; color: #d64545; }
 .log-row-tag.neutral { background: #fff6e3; color: #b9791a; }
+
+/* ── 反馈列表：居中弹窗（不是底部抽屉），独立样式 ──────── */
+.feedback-list-overlay { align-items: center; padding: 20px; }
+.feedback-list-panel {
+  width: 100%; max-width: 380px; background: #fff;
+  border-radius: 20px; padding: 22px 20px 20px; position: relative;
+  max-height: 82vh; overflow-y: auto; box-shadow: var(--shadow-lg);
+  animation: fbListPopIn 0.18s ease;
+}
+@keyframes fbListPopIn {
+  from { transform: scale(0.94); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
 .svc-stat-row {
   display: flex; align-items: center; gap: 10px; background: var(--bg-subtle);
   border-radius: 12px; padding: 9px 12px;

@@ -288,11 +288,10 @@
   </div>
 </div>
 
-<!-- ── 用户反馈列表（管理员查看） ─────────────────────── -->
-<div class="modal-overlay" id="feedbackListOverlay" onclick="closeFeedbackList(event)">
-  <div class="edit-drawer modal-has-close-btn" onclick="event.stopPropagation()" style="max-height:90vh">
+<!-- ── 用户反馈列表（管理员查看）：居中弹窗，独立样式，不复用底部抽屉 ── -->
+<div class="modal-overlay feedback-list-overlay" id="feedbackListOverlay" onclick="closeFeedbackList(event)">
+  <div class="feedback-list-panel modal-has-close-btn" onclick="event.stopPropagation()">
     <button class="modal-close-btn" onclick="closeFeedbackList()" aria-label="关闭"><i class="ti ti-x"></i></button>
-    <div class="picker-handle"></div>
     <div class="drawer-title">用户反馈</div>
     <div class="drawer-sub">仅管理员可见，数据来自云端，最多拉取最近 200 条</div>
 
