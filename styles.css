@@ -2643,6 +2643,7 @@ body.a11y-mode .leave-modal { max-width: 480px; }
 .log-row-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
 .log-row-tag.ok { background: var(--primary-light); color: var(--primary); }
 .log-row-tag.fail { background: #fdeaea; color: #d64545; }
+.log-row-tag.neutral { background: #fff6e3; color: #b9791a; }
 .svc-stat-row {
   display: flex; align-items: center; gap: 10px; background: var(--bg-subtle);
   border-radius: 12px; padding: 9px 12px;

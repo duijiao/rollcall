@@ -79,6 +79,9 @@
             <button class="admin-menu-item" onclick="closeAdminMenu();openAdminData()">
               <i class="ti ti-chart-bar"></i><span>访客与登录数据</span>
             </button>
+            <button class="admin-menu-item" onclick="closeAdminMenu();openFeedbackList()">
+              <i class="ti ti-message-2"></i><span>用户反馈</span>
+            </button>
             <button class="admin-menu-item" onclick="closeAdminMenu();openRoster()">
               <i class="ti ti-users"></i><span>名单成员管理</span>
             </button>
@@ -281,6 +284,33 @@
     <div class="drawer-actions">
       <button class="btn-cancel" style="flex:1" onclick="refreshAdminData()">刷新</button>
       <button class="btn-save" style="flex:1" onclick="closeAdminData()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 用户反馈列表（管理员查看） ─────────────────────── -->
+<div class="modal-overlay" id="feedbackListOverlay" onclick="closeFeedbackList(event)">
+  <div class="edit-drawer modal-has-close-btn" onclick="event.stopPropagation()" style="max-height:90vh">
+    <button class="modal-close-btn" onclick="closeFeedbackList()" aria-label="关闭"><i class="ti ti-x"></i></button>
+    <div class="picker-handle"></div>
+    <div class="drawer-title">用户反馈</div>
+    <div class="drawer-sub">仅管理员可见，数据来自云端，最多拉取最近 200 条</div>
+
+    <div class="upload-source-tabs" style="margin-bottom:14px">
+      <button class="upload-source-tab active" id="feedbackListTabAll" onclick="switchFeedbackListTab('all')">全部</button>
+      <button class="upload-source-tab" id="feedbackListTabGood" onclick="switchFeedbackListTab('good')">很好</button>
+      <button class="upload-source-tab" id="feedbackListTabNeutral" onclick="switchFeedbackListTab('neutral')">一般</button>
+      <button class="upload-source-tab" id="feedbackListTabBad" onclick="switchFeedbackListTab('bad')">有问题</button>
+    </div>
+
+    <div id="feedbackListSummary" style="font-size:12px;color:#888;margin-bottom:10px;display:flex;gap:14px;flex-wrap:wrap"></div>
+
+    <div id="feedbackListLoading" style="text-align:center;color:#aaa;font-size:13px;padding:20px 0">加载中…</div>
+    <div id="feedbackListPane" style="display:flex;flex-direction:column;gap:8px"></div>
+
+    <div class="drawer-actions">
+      <button class="btn-cancel" style="flex:1" onclick="refreshFeedbackList()">刷新</button>
+      <button class="btn-save" style="flex:1" onclick="closeFeedbackList()">关闭</button>
     </div>
   </div>
 </div>

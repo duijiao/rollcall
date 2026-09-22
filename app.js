@@ -5850,6 +5850,95 @@ async function submitFeedback(){
   if(btn){ btn.disabled = false; btn.textContent = '提交反馈'; }
   resetFeedbackForm();
 }
+
+// ── 管理员：查看用户反馈列表 ──────────────────────────
+let feedbackListMoodFilter = 'all';
+let feedbackListRawData = [];
+const FEEDBACK_MOOD_LABEL = { good: '很好', neutral: '一般', bad: '有问题' };
+const FEEDBACK_MOOD_TAG_CLASS = { good: 'ok', neutral: 'neutral', bad: 'fail' };
+
+function openFeedbackList() {
+  document.getElementById('feedbackListOverlay').classList.add('open');
+  switchFeedbackListTab('all');
+  refreshFeedbackList();
+}
+function closeFeedbackList(e) {
+  if (!e || e.target === document.getElementById('feedbackListOverlay'))
+    document.getElementById('feedbackListOverlay').classList.remove('open');
+}
+function switchFeedbackListTab(mood) {
+  feedbackListMoodFilter = mood;
+  const idMap = { all: 'feedbackListTabAll', good: 'feedbackListTabGood', neutral: 'feedbackListTabNeutral', bad: 'feedbackListTabBad' };
+  Object.keys(idMap).forEach(m => {
+    const el = document.getElementById(idMap[m]);
+    if (el) el.classList.toggle('active', m === mood);
+  });
+  renderFeedbackList();
+}
+
+async function refreshFeedbackList() {
+  const loadingEl = document.getElementById('feedbackListLoading');
+  const paneEl = document.getElementById('feedbackListPane');
+  const summaryEl = document.getElementById('feedbackListSummary');
+  if (!initSupabaseClient()) {
+    loadingEl.textContent = '云端未配置，无法读取反馈记录';
+    return;
+  }
+  loadingEl.style.display = 'block';
+  loadingEl.textContent = '加载中…';
+  paneEl.innerHTML = '';
+  try {
+    const { data, error } = await supabaseClient
+      .from(SUPABASE_CONFIG.feedbackTable)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    feedbackListRawData = data || [];
+    const total = feedbackListRawData.length;
+    const goodCount = feedbackListRawData.filter(f => f.mood === 'good').length;
+    const neutralCount = feedbackListRawData.filter(f => f.mood === 'neutral').length;
+    const badCount = feedbackListRawData.filter(f => f.mood === 'bad').length;
+    summaryEl.innerHTML = `
+      <span>共 <b>${total}</b> 条</span>
+      <span>很好：<b>${goodCount}</b></span>
+      <span>一般：<b>${neutralCount}</b></span>
+      <span>有问题：<b>${badCount}</b></span>
+    `;
+    loadingEl.style.display = 'none';
+    renderFeedbackList();
+  } catch (e) {
+    console.error('读取用户反馈失败', e);
+    loadingEl.textContent = '读取失败，请确认已在 Supabase 中建好 site_feedback 表并配置好权限';
+  }
+}
+
+function renderFeedbackList() {
+  const paneEl = document.getElementById('feedbackListPane');
+  if (!paneEl) return;
+  const list = feedbackListMoodFilter === 'all'
+    ? feedbackListRawData
+    : feedbackListRawData.filter(f => f.mood === feedbackListMoodFilter);
+  paneEl.innerHTML = list.length ? list.map(f => {
+    const moodLabel = FEEDBACK_MOOD_LABEL[f.mood] || '未选择';
+    const tagClass = FEEDBACK_MOOD_TAG_CLASS[f.mood] || '';
+    const tags = Array.isArray(f.tags) ? f.tags : [];
+    const tagsHtml = tags.length ? `<div class="log-row-sub">标签：${tags.map(t => escapeHtml(t)).join('、')}</div>` : '';
+    const msgHtml = f.message
+      ? `<div class="log-row-sub">${escapeHtml(f.message)}</div>`
+      : `<div class="log-row-sub" style="color:var(--text-4)">（未填写文字意见）</div>`;
+    return `
+      <div class="log-row">
+        <div class="log-row-top">
+          <span class="log-row-tag ${tagClass}">${moodLabel}</span>
+          <span class="log-row-time">${formatLogTime(f.created_at)}</span>
+        </div>
+        ${msgHtml}
+        ${tagsHtml}
+      </div>
+    `;
+  }).join('') : '<div style="text-align:center;color:#ccc;font-size:12px;padding:20px 0">暂无反馈记录</div>';
+}
 function updateLeaveBadge() {
   // Leave entry now lives in Settings (guests) / the admin dropdown menu (admins) instead of
   // its own top-bar button, so this only needs to keep the admin menu badge in sync.
