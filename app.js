@@ -21,24 +21,6 @@ let customEventDates = (window.APP_CONFIG.customEventDates && typeof window.APP_
 let churchSite = { logoUrl: '', bannerUrl: '', roleBgImages: {}, headerBgUrl: '', headerTextTone: 'dark' };
 const DEFAULT_HEADER_SLOGAN = '与主同行 每天更近一步';
 
-// 全局通知弹窗（图片卡片样式）：内容由管理员在"设置"里配置，enabled=true 时对所有访问者弹出一次；
-// updatedAt 每次"保存并发布"都会更新，用来让已经看过旧内容的人重新看到最新一次发布的内容。
-let globalNotice = {
-  enabled: false, badge: '重要', tag: '通知', title: '', image: '', publishTime: '',
-  body: '', oldValue: '', newValue: '', location: '',
-  attachmentName: '', attachmentUrl: '', updatedAt: 0,
-};
-function normalizeGlobalNotice(raw) {
-  const d = { enabled: false, badge: '重要', tag: '通知', title: '', image: '', publishTime: '',
-    body: '', oldValue: '', newValue: '', location: '', attachmentName: '', attachmentUrl: '', updatedAt: 0 };
-  if (!raw || typeof raw !== 'object') return d;
-  const out = Object.assign({}, d);
-  Object.keys(d).forEach(k => { if (raw[k] !== undefined && raw[k] !== null) out[k] = raw[k]; });
-  out.enabled = !!out.enabled;
-  out.updatedAt = Number(out.updatedAt) || 0;
-  return out;
-}
-
 function getHeaderBgImage() {
   const url = churchSite && churchSite.headerBgUrl;
   return typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '';
@@ -230,6 +212,241 @@ async function saveSongLibStorageConfig() {
   showToast('✅ 诗歌库存储配置已保存');
   try { await syncRemoteField('song_lib_storage_config', songLibSupabaseConfig); } catch (e) {}
 }
+// ── 全局通知弹窗（管理员配置，全体用户可见）──────────────
+const LS_GLOBAL_NOTICE_DISMISS = 'churchGlobalNoticeDismiss';
+let globalNotice = {
+  enabled: false,
+  tag: '重要通知',
+  title: '',
+  dateText: '',
+  audience: '全体同工',
+  content: '',
+  attachments: [],
+  showTimeCompare: false,
+  timeCompareLabel: '调整后的主要时间',
+  timeFromLabel: '原时间',
+  timeFrom: '',
+  timeToLabel: '现时间',
+  timeTo: '',
+  showLocation: false,
+  locationLabel: '地点',
+  locationValue: '',
+};
+function normalizeGlobalNotice(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const att = Array.isArray(o.attachments) ? o.attachments : [];
+  return {
+    enabled: !!o.enabled,
+    tag: typeof o.tag === 'string' ? o.tag : '重要通知',
+    title: typeof o.title === 'string' ? o.title : '',
+    dateText: typeof o.dateText === 'string' ? o.dateText : '',
+    audience: typeof o.audience === 'string' ? o.audience : '全体同工',
+    content: typeof o.content === 'string' ? o.content : '',
+    attachments: att.filter(a => a && typeof a === 'object').map(a => ({
+      name: typeof a.name === 'string' ? a.name : '附件',
+      size: typeof a.size === 'string' ? a.size : '',
+      url: typeof a.url === 'string' ? a.url : '',
+    })),
+    showTimeCompare: !!o.showTimeCompare,
+    timeCompareLabel: typeof o.timeCompareLabel === 'string' ? o.timeCompareLabel : '调整后的主要时间',
+    timeFromLabel: typeof o.timeFromLabel === 'string' ? o.timeFromLabel : '原时间',
+    timeFrom: typeof o.timeFrom === 'string' ? o.timeFrom : '',
+    timeToLabel: typeof o.timeToLabel === 'string' ? o.timeToLabel : '现时间',
+    timeTo: typeof o.timeTo === 'string' ? o.timeTo : '',
+    showLocation: !!o.showLocation,
+    locationLabel: typeof o.locationLabel === 'string' ? o.locationLabel : '地点',
+    locationValue: typeof o.locationValue === 'string' ? o.locationValue : '',
+  };
+}
+function todayDateKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+// 每次进入网页都尝试显示（若已开启且有内容），除非用户今天勾选过"不再显示"
+function maybeShowGlobalNotice() {
+  if (!globalNotice || !globalNotice.enabled) return;
+  if (!globalNotice.title && !globalNotice.content) return;
+  try {
+    if (localStorage.getItem(LS_GLOBAL_NOTICE_DISMISS) === todayDateKey()) return;
+  } catch (e) {}
+  renderGlobalNotice();
+  const overlay = document.getElementById('globalNoticeOverlay');
+  if (overlay) overlay.classList.add('open');
+}
+function renderGlobalNotice() {
+  const n = globalNotice;
+  const titleEl = document.getElementById('globalNoticeTag');
+  if (titleEl) titleEl.textContent = n.tag || '重要通知';
+  const titleH = document.getElementById('globalNoticeTitle');
+  if (titleH) titleH.textContent = n.title || '';
+  const metaDate = document.getElementById('globalNoticeDate');
+  if (metaDate) metaDate.textContent = n.dateText || '';
+  const metaDateWrap = document.getElementById('globalNoticeDateWrap');
+  if (metaDateWrap) metaDateWrap.style.display = n.dateText ? '' : 'none';
+  const audienceEl = document.getElementById('globalNoticeAudience');
+  if (audienceEl) { audienceEl.textContent = n.audience || ''; audienceEl.style.display = n.audience ? '' : 'none'; }
+  const contentEl = document.getElementById('globalNoticeContent');
+  if (contentEl) contentEl.textContent = n.content || '';
+
+  const attSec = document.getElementById('globalNoticeAttachSection');
+  const attList = document.getElementById('globalNoticeAttachList');
+  const attCount = document.getElementById('globalNoticeAttachCount');
+  if (attSec && attList) {
+    if (n.attachments.length) {
+      attSec.style.display = '';
+      if (attCount) attCount.textContent = n.attachments.length;
+      attList.innerHTML = n.attachments.map(a => `
+        <div class="gn-attach-row">
+          <div class="gn-attach-icon"><i class="ti ti-file-text"></i></div>
+          <div class="gn-attach-body">
+            <div class="gn-attach-name">${escapeHtml(a.name)}</div>
+            ${a.size ? `<div class="gn-attach-size">${escapeHtml(a.size)}</div>` : ''}
+          </div>
+          ${a.url ? `<a class="gn-attach-dl" href="${escapeHtml(a.url)}" target="_blank" rel="noopener" title="下载"><i class="ti ti-download"></i></a>` : ''}
+        </div>`).join('');
+    } else {
+      attSec.style.display = 'none';
+    }
+  }
+
+  const timeSec = document.getElementById('globalNoticeTimeSection');
+  if (timeSec) {
+    if (n.showTimeCompare) {
+      timeSec.style.display = '';
+      const lbl = document.getElementById('globalNoticeTimeLabel');
+      if (lbl) lbl.textContent = n.timeCompareLabel || '调整后的主要时间';
+      const fl = document.getElementById('globalNoticeFromLabel'); if (fl) fl.textContent = n.timeFromLabel || '原时间';
+      const fv = document.getElementById('globalNoticeFromValue'); if (fv) fv.textContent = n.timeFrom || '';
+      const tl = document.getElementById('globalNoticeToLabel'); if (tl) tl.textContent = n.timeToLabel || '现时间';
+      const tv = document.getElementById('globalNoticeToValue'); if (tv) tv.textContent = n.timeTo || '';
+    } else {
+      timeSec.style.display = 'none';
+    }
+  }
+
+  const locSec = document.getElementById('globalNoticeLocationSection');
+  if (locSec) {
+    if (n.showLocation) {
+      locSec.style.display = '';
+      const ll = document.getElementById('globalNoticeLocLabel'); if (ll) ll.textContent = n.locationLabel || '地点';
+      const lv = document.getElementById('globalNoticeLocValue'); if (lv) lv.textContent = n.locationValue || '';
+    } else {
+      locSec.style.display = 'none';
+    }
+  }
+
+  const cb = document.getElementById('globalNoticeDontShowToday');
+  if (cb) cb.checked = false;
+}
+function closeGlobalNotice() {
+  const cb = document.getElementById('globalNoticeDontShowToday');
+  if (cb && cb.checked) {
+    try { localStorage.setItem(LS_GLOBAL_NOTICE_DISMISS, todayDateKey()); } catch (e) {}
+  }
+  const overlay = document.getElementById('globalNoticeOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+// ── 全局通知：管理员设置面板 ───────────────────────────
+let gnEditAttachments = [];
+function fillGlobalNoticeSettingsInputs() {
+  const n = globalNotice;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  const el = document.getElementById('gnEnabledToggle'); if (el) el.checked = !!n.enabled;
+  set('gnTagInput', n.tag);
+  set('gnTitleInput', n.title);
+  set('gnDateInput', n.dateText);
+  set('gnAudienceInput', n.audience);
+  set('gnContentInput', n.content);
+  const tc = document.getElementById('gnShowTimeCompare'); if (tc) tc.checked = !!n.showTimeCompare;
+  set('gnTimeCompareLabel', n.timeCompareLabel);
+  set('gnTimeFromLabel', n.timeFromLabel);
+  set('gnTimeFrom', n.timeFrom);
+  set('gnTimeToLabel', n.timeToLabel);
+  set('gnTimeTo', n.timeTo);
+  const sl = document.getElementById('gnShowLocation'); if (sl) sl.checked = !!n.showLocation;
+  set('gnLocationLabel', n.locationLabel);
+  set('gnLocationValue', n.locationValue);
+  gnEditAttachments = n.attachments.map(a => ({ ...a }));
+  renderGnAttachEditList();
+}
+function renderGnAttachEditList() {
+  const wrap = document.getElementById('gnAttachEditList');
+  if (!wrap) return;
+  if (!gnEditAttachments.length) {
+    wrap.innerHTML = `<div style="font-size:12px;color:var(--text-3)">暂无附件</div>`;
+    return;
+  }
+  wrap.innerHTML = gnEditAttachments.map((a, i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--bg-subtle);border-radius:8px">
+      <i class="ti ti-file-text" style="color:var(--text-3);flex-shrink:0"></i>
+      <div style="flex:1;min-width:0;font-size:12.5px;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}${a.size ? ` · ${escapeHtml(a.size)}` : ''}</div>
+      <button type="button" class="modal-close-btn" style="position:static;width:24px;height:24px" onclick="removeGnAttachment(${i})" title="删除"><i class="ti ti-x" style="font-size:13px"></i></button>
+    </div>`).join('');
+}
+function addGnAttachmentPrompt() {
+  const name = prompt('附件名称（如：主日流程安排.pdf）');
+  if (!name) return;
+  const url = prompt('附件下载链接（可粘贴 Supabase Storage 或其它公开链接，留空则不可下载）') || '';
+  const size = prompt('附件大小说明（可选，如 2.3 MB）') || '';
+  gnEditAttachments.push({ name: name.trim(), url: url.trim(), size: size.trim() });
+  renderGnAttachEditList();
+}
+function removeGnAttachment(i) {
+  gnEditAttachments.splice(i, 1);
+  renderGnAttachEditList();
+}
+async function saveGlobalNoticeSettings() {
+  if (!isAdmin) return;
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  globalNotice = normalizeGlobalNotice({
+    enabled: !!document.getElementById('gnEnabledToggle')?.checked,
+    tag: val('gnTagInput') || '重要通知',
+    title: val('gnTitleInput'),
+    dateText: val('gnDateInput'),
+    audience: val('gnAudienceInput'),
+    content: document.getElementById('gnContentInput')?.value || '',
+    attachments: gnEditAttachments,
+    showTimeCompare: !!document.getElementById('gnShowTimeCompare')?.checked,
+    timeCompareLabel: val('gnTimeCompareLabel'),
+    timeFromLabel: val('gnTimeFromLabel'),
+    timeFrom: val('gnTimeFrom'),
+    timeToLabel: val('gnTimeToLabel'),
+    timeTo: val('gnTimeTo'),
+    showLocation: !!document.getElementById('gnShowLocation')?.checked,
+    locationLabel: val('gnLocationLabel'),
+    locationValue: val('gnLocationValue'),
+  });
+  try {
+    await syncRemoteField('global_notice', globalNotice);
+    showToast('✅ 通知弹窗已保存并全局生效');
+  } catch (e) {
+    console.error('保存全局通知失败', e);
+    showToast('保存失败，请检查网络后重试');
+  }
+}
+function previewGlobalNoticeFromSettings() {
+  globalNotice = normalizeGlobalNotice({
+    enabled: true,
+    tag: (document.getElementById('gnTagInput')?.value || '').trim() || '重要通知',
+    title: (document.getElementById('gnTitleInput')?.value || '').trim(),
+    dateText: (document.getElementById('gnDateInput')?.value || '').trim(),
+    audience: (document.getElementById('gnAudienceInput')?.value || '').trim(),
+    content: document.getElementById('gnContentInput')?.value || '',
+    attachments: gnEditAttachments,
+    showTimeCompare: !!document.getElementById('gnShowTimeCompare')?.checked,
+    timeCompareLabel: (document.getElementById('gnTimeCompareLabel')?.value || '').trim(),
+    timeFromLabel: (document.getElementById('gnTimeFromLabel')?.value || '').trim(),
+    timeFrom: (document.getElementById('gnTimeFrom')?.value || '').trim(),
+    timeToLabel: (document.getElementById('gnTimeToLabel')?.value || '').trim(),
+    timeTo: (document.getElementById('gnTimeTo')?.value || '').trim(),
+    showLocation: !!document.getElementById('gnShowLocation')?.checked,
+    locationLabel: (document.getElementById('gnLocationLabel')?.value || '').trim(),
+    locationValue: (document.getElementById('gnLocationValue')?.value || '').trim(),
+  });
+  renderGlobalNotice();
+  document.getElementById('globalNoticeOverlay')?.classList.add('open');
+}
+
 async function uploadMusicMp3File(file) {
   const client = getSongLibSupabaseClient();
   if (!client) throw new Error('尚未配置诗歌库 Supabase 存储，请联系管理员在"设置"中配置');
@@ -1223,6 +1440,7 @@ function updateAdminUI(){
   const gb=document.getElementById('topbarGuestBadge'); if(gb) gb.style.display=isAdmin?'none':'flex';
   const b=document.getElementById('addShiftBtn'); if(b) b.style.display=isAdmin?'flex':'none';
   const me=document.getElementById('adminMonthlyEditBtn'); if(me) me.style.display=isAdmin?'flex':'none';
+  const me2=document.getElementById('addShiftMonthlyBtn'); if(me2) me2.style.display=isAdmin?'flex':'none';
   document.querySelectorAll('.upload-song-btn').forEach(el=>el.classList.toggle('show',isAdmin));
   if (songLibDetailCurrent) renderSongLibLrc();
   document.querySelectorAll('.sermon-edit-btn').forEach(el=>el.classList.toggle('show',isAdmin));
@@ -3660,7 +3878,7 @@ function renderShifts(key){
         : `background:${col.bg};color:${col.text}`;
       if(isAdmin) item.setAttribute('onclick',`openEditDrawer('${s.role}','${key}')`);
       item.innerHTML=`
-        <button class="cvi-edit-btn" onclick="event.stopPropagation();openEditDrawer('${s.role}','${key}')">✎ 编辑</button>
+        <button class="cvi-edit-btn" onclick="event.stopPropagation();openEditDrawer('${s.role}','${key}')"><i class="ti ti-user-edit"></i> 编辑</button>
         <div class="cvi-header">
           <div class="cvi-icon"><i class="ti ${col.icon}" style="color:${bgImg?'#fff':col.text}"></i></div>
           <span class="cvi-role">${s.role}</span>
@@ -3698,6 +3916,12 @@ function render(){
   const zhWeek=['主日','周一','周二','周三','周四','周五','周六'];
   document.getElementById('hdrDay').textContent=headerCollapsed ? ZH_MONTHS[month]+'月份' : `${now.getMonth()+1}月${now.getDate()}日`;
   const wt=document.getElementById('hdrWeekdayTag'); if(wt) wt.textContent = zhWeek[now.getDay()];
+  const todayLabelEl=document.getElementById('hdrTodayLabel');
+if(todayLabelEl){
+  todayLabelEl.textContent = headerCollapsed
+    ? `今天·${now.getMonth()+1}月${now.getDate()}日·${zhWeek[now.getDay()]}`
+    : '今天';
+}
   document.getElementById('hdrInfo').innerHTML=getSundayCountdownHtml();
   applyHeaderCardStyle();
   document.getElementById('hdrMini').textContent='敬拜排班表';
@@ -5018,17 +5242,17 @@ function openSettings() {
       if (bannerPrev) bannerPrev.style.display = churchSite.bannerUrl ? '' : 'none';
     }
   }
-  // 全局通知弹窗设置：仅管理员可见
-  const globalNoticeSec = document.getElementById('globalNoticeSection');
-  if (globalNoticeSec) {
-    globalNoticeSec.style.display = isAdmin ? '' : 'none';
-    if (isAdmin) fillGlobalNoticeAdminInputs();
-  }
   // 首页日期卡片背景图设置：仅管理员可见
   const headerBgSec = document.getElementById('headerBgSection');
   if (headerBgSec) {
     headerBgSec.style.display = isAdmin ? '' : 'none';
     if (isAdmin) renderHeaderBgSettings();
+  }
+  // 全局通知弹窗设置：仅管理员可见
+  const gnSec = document.getElementById('globalNoticeSection');
+  if (gnSec) {
+    gnSec.style.display = isAdmin ? '' : 'none';
+    if (isAdmin) fillGlobalNoticeSettingsInputs();
   }
   // 排班分类卡片背景图设置：仅管理员可见
   const roleBgSec = document.getElementById('roleBgSection');
@@ -5753,310 +5977,6 @@ function closeSaturdayReminder(e){
     document.getElementById('saturdayReminderOverlay').classList.remove('open');
   }
 }
-
-// ── 全局通知弹窗（图片卡片样式，内容由管理员在"设置"里配置）──────
-// LS_GLOBAL_NOTICE_SEEN：记录本设备已经看过（点击"我知道了"/勾选"标记为已读"关闭）的
-//                        通知版本号（用 updatedAt 时间戳区分）。管理员每次"保存并发布"
-//                        都会更新 updatedAt，于是所有人（包括已看过旧内容的人）都会重新弹出一次。
-const LS_GLOBAL_NOTICE_SEEN = 'churchGlobalNoticeSeenVersion';
-let gnPreviewMode = false;
-
-function renderGlobalNoticeModal(data){
-  const n = data || globalNotice;
-  const modalEl = document.querySelector('#globalNoticeOverlay .gn-modal');
-  const coverWrap = document.getElementById('gnCoverWrap');
-  const coverImg = document.getElementById('gnCoverImg');
-  const hasImage = !!(n.image && /^https?:\/\//i.test(n.image));
-  if(coverWrap) coverWrap.style.display = hasImage ? '' : 'none';
-  if(coverImg) coverImg.src = hasImage ? n.image : '';
-  if(modalEl) modalEl.classList.toggle('gn-no-cover', !hasImage);
-
-  const badgeText = document.getElementById('gnBadgeText');
-  if(badgeText) badgeText.textContent = n.badge || '重要';
-  const badgeEl = document.getElementById('gnBadge');
-  if(badgeEl) badgeEl.style.display = n.badge ? '' : 'none';
-
-  const titleEl = document.getElementById('gnTitle');
-  if(titleEl) titleEl.textContent = n.title || '通知';
-
-  const timeEl = document.getElementById('gnPublishTime');
-  if(timeEl) timeEl.textContent = n.publishTime ? `发布于 ${n.publishTime}` : '';
-
-  const tagEl = document.getElementById('gnTag');
-  if(tagEl){ tagEl.textContent = n.tag || ''; tagEl.style.display = n.tag ? '' : 'none'; }
-
-  const textEl = document.getElementById('gnText');
-  if(textEl) textEl.textContent = n.body || '';
-
-  const compareBox = document.getElementById('gnCompareBox');
-  const compareRow = compareBox ? compareBox.querySelector('.gn-compare-row') : null;
-  const showCompare = !!(n.oldValue || n.newValue);
-  if(compareRow) compareRow.style.display = showCompare ? '' : 'none';
-  const oldEl = document.getElementById('gnOldValue');
-  if(oldEl) oldEl.textContent = n.oldValue || '';
-  const newEl = document.getElementById('gnNewValue');
-  if(newEl) newEl.textContent = n.newValue || '';
-
-  const locRow = document.getElementById('gnLocationRow');
-  if(locRow) locRow.style.display = n.location ? '' : 'none';
-  const locVal = document.getElementById('gnLocationValue');
-  if(locVal) locVal.textContent = n.location || '';
-  if(compareBox) compareBox.style.display = (showCompare || n.location) ? '' : 'none';
-
-  const attach = document.getElementById('gnAttachment');
-  const hasAttach = !!(n.attachmentUrl && n.attachmentName);
-  if(attach) attach.style.display = hasAttach ? '' : 'none';
-  const attachName = document.getElementById('gnAttachName');
-  if(attachName) attachName.textContent = n.attachmentName || '';
-
-  const readCb = document.getElementById('gnMarkReadToggle');
-  if(readCb) readCb.checked = false;
-}
-
-function checkGlobalNoticeModal(){
-  if(!globalNotice || !globalNotice.enabled) return;
-  let seen = '';
-  try{ seen = localStorage.getItem(LS_GLOBAL_NOTICE_SEEN) || ''; }catch(e){}
-  if(seen === String(globalNotice.updatedAt)) return;
-  // 稍作延迟再弹出，避免和登录框/主日提醒等首屏弹窗抢焦点；
-  // 如果此刻已经有其他弹窗打开，就跳过（下一次进入页面时会正常判断）
-  setTimeout(() => {
-    const anyOpenModal = document.querySelector('.modal-overlay.open');
-    if(anyOpenModal) return;
-    gnPreviewMode = false;
-    renderGlobalNoticeModal();
-    const overlay = document.getElementById('globalNoticeOverlay');
-    if(overlay) overlay.classList.add('open');
-  }, 1200);
-}
-
-function markGlobalNoticeSeen(){
-  try{ localStorage.setItem(LS_GLOBAL_NOTICE_SEEN, String(globalNotice.updatedAt)); }catch(e){}
-}
-
-function closeGlobalNoticeModal(e){
-  const overlay = document.getElementById('globalNoticeOverlay');
-  if(!overlay) return;
-  if(!e || e.target === overlay){
-    if(!gnPreviewMode) markGlobalNoticeSeen();
-    overlay.classList.remove('open');
-    gnPreviewMode = false;
-  }
-}
-
-function openGlobalNoticeAttachment(){
-  const url = gnPreviewMode ? document.getElementById('gnAdminAttachUrlInput')?.value.trim() : globalNotice.attachmentUrl;
-  if(url) window.open(url, '_blank');
-}
-
-// ── 管理员：编辑并发布全局通知弹窗 ─────────────────────
-function fillGlobalNoticeAdminInputs(){
-  const n = globalNotice;
-  const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
-  const toggle = document.getElementById('gnAdminEnabledToggle');
-  if(toggle) toggle.checked = !!n.enabled;
-  set('gnAdminBadgeInput', n.badge);
-  set('gnAdminTagInput', n.tag);
-  set('gnAdminTitleInput', n.title);
-  set('gnAdminBodyInput', n.body);
-  set('gnAdminOldValueInput', n.oldValue);
-  set('gnAdminNewValueInput', n.newValue);
-  set('gnAdminLocationInput', n.location);
-  set('gnAdminAttachNameInput', n.attachmentName);
-  set('gnAdminAttachUrlInput', n.attachmentUrl);
-  const prev = document.getElementById('gnAdminImagePreview');
-  if(prev){
-    prev.src = n.image || '';
-    prev.style.display = n.image ? '' : 'none';
-    prev.dataset.url = n.image || '';
-  }
-  const err = document.getElementById('gnAdminError');
-  if(err) err.textContent = '';
-}
-
-function readGlobalNoticeDraftFromInputs(){
-  const val = id => (document.getElementById(id)?.value || '').trim();
-  const imgPrev = document.getElementById('gnAdminImagePreview');
-  return {
-    badge: val('gnAdminBadgeInput'),
-    tag: val('gnAdminTagInput'),
-    title: val('gnAdminTitleInput'),
-    image: (imgPrev && imgPrev.dataset.url) || '',
-    body: val('gnAdminBodyInput'),
-    oldValue: val('gnAdminOldValueInput'),
-    newValue: val('gnAdminNewValueInput'),
-    location: val('gnAdminLocationInput'),
-    attachmentName: val('gnAdminAttachNameInput'),
-    attachmentUrl: val('gnAdminAttachUrlInput'),
-  };
-}
-
-async function handleGlobalNoticeImageSelect(input){
-  const file = input.files && input.files[0];
-  if(!file) return;
-  const prev = document.getElementById('gnAdminImagePreview');
-  try{
-    if(prev){ prev.style.opacity = '0.4'; prev.style.display = ''; }
-    const url = await uploadChurchSiteImage(file, 'notice');
-    if(prev){ prev.src = url; prev.dataset.url = url; prev.style.opacity = '1'; }
-    showToast('✅ 图片已上传，别忘了点"保存并发布"');
-  }catch(e){
-    if(prev) prev.style.opacity = '1';
-    showToast('上传失败：' + (e?.message || '请重试'));
-  }finally{
-    input.value = '';
-  }
-}
-
-function clearGlobalNoticeImage(){
-  const prev = document.getElementById('gnAdminImagePreview');
-  if(prev){ prev.src = ''; prev.dataset.url = ''; prev.style.display = 'none'; }
-}
-
-function previewGlobalNotice(){
-  const draft = readGlobalNoticeDraftFromInputs();
-  draft.publishTime = globalNotice.publishTime || formatGlobalNoticeTime(new Date());
-  gnPreviewMode = true;
-  renderGlobalNoticeModal(draft);
-  const overlay = document.getElementById('globalNoticeOverlay');
-  if(overlay) overlay.classList.add('open');
-}
-
-function formatGlobalNoticeTime(d){
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-async function saveGlobalNoticeSettings(evt){
-  const err = document.getElementById('gnAdminError');
-  const draft = readGlobalNoticeDraftFromInputs();
-  if(!draft.title){
-    if(err) err.textContent = '请先填写标题';
-    return;
-  }
-  if(err) err.textContent = '';
-  const btn = evt?.currentTarget;
-  if(btn){ btn.disabled = true; }
-  globalNotice = normalizeGlobalNotice(Object.assign({}, globalNotice, draft, {
-    enabled: true,
-    publishTime: formatGlobalNoticeTime(new Date()),
-    updatedAt: Date.now(),
-  }));
-  try{
-    await syncRemoteField('global_notice', globalNotice);
-    fillGlobalNoticeAdminInputs();
-    showToast('✅ 已发布，所有人下次打开页面都会看到最新内容');
-  }catch(e){
-    console.error('保存全局通知失败', e);
-    if(err) err.textContent = '保存失败：请确认已在 Supabase 的 church_app_state 表中新建 global_notice（jsonb）列';
-  }finally{
-    if(btn) btn.disabled = false;
-  }
-}
-
-async function toggleGlobalNoticeEnabled(checked){
-  const prevEnabled = globalNotice.enabled;
-  globalNotice.enabled = checked;
-  try{
-    await syncRemoteField('global_notice', globalNotice);
-    showToast(checked ? '✅ 已开启，将对所有人显示' : '已关闭，不再对任何人弹出');
-  }catch(e){
-    console.error('切换全局通知开关失败', e);
-    globalNotice.enabled = prevEnabled;
-    const toggle = document.getElementById('gnAdminEnabledToggle');
-    if(toggle) toggle.checked = prevEnabled;
-    showToast('操作失败：请确认已在 Supabase 中新建 global_notice 列');
-  }
-}
-
-// ── 管理员：查看用户反馈列表 ──────────────────────────
-let feedbackListMoodFilter = 'all';
-let feedbackListRawData = [];
-const FEEDBACK_MOOD_LABEL = { good: '很好', neutral: '一般', bad: '有问题' };
-const FEEDBACK_MOOD_TAG_CLASS = { good: 'ok', neutral: 'neutral', bad: 'fail' };
-
-function openFeedbackList() {
-  document.getElementById('feedbackListOverlay').classList.add('open');
-  switchFeedbackListTab('all');
-  refreshFeedbackList();
-}
-function closeFeedbackList(e) {
-  if (!e || e.target === document.getElementById('feedbackListOverlay'))
-    document.getElementById('feedbackListOverlay').classList.remove('open');
-}
-function switchFeedbackListTab(mood) {
-  feedbackListMoodFilter = mood;
-  const idMap = { all: 'feedbackListTabAll', good: 'feedbackListTabGood', neutral: 'feedbackListTabNeutral', bad: 'feedbackListTabBad' };
-  Object.keys(idMap).forEach(m => {
-    const el = document.getElementById(idMap[m]);
-    if (el) el.classList.toggle('active', m === mood);
-  });
-  renderFeedbackList();
-}
-
-async function refreshFeedbackList() {
-  const loadingEl = document.getElementById('feedbackListLoading');
-  const paneEl = document.getElementById('feedbackListPane');
-  const summaryEl = document.getElementById('feedbackListSummary');
-  if (!initSupabaseClient()) {
-    loadingEl.textContent = '云端未配置，无法读取反馈记录';
-    return;
-  }
-  loadingEl.style.display = 'block';
-  loadingEl.textContent = '加载中…';
-  paneEl.innerHTML = '';
-  try {
-    const { data, error } = await supabaseClient
-      .from(SUPABASE_CONFIG.feedbackTable)
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200);
-    if (error) throw error;
-    feedbackListRawData = data || [];
-    const total = feedbackListRawData.length;
-    const goodCount = feedbackListRawData.filter(f => f.mood === 'good').length;
-    const neutralCount = feedbackListRawData.filter(f => f.mood === 'neutral').length;
-    const badCount = feedbackListRawData.filter(f => f.mood === 'bad').length;
-    summaryEl.innerHTML = `
-      <span>共 <b>${total}</b> 条</span>
-      <span>很好：<b>${goodCount}</b></span>
-      <span>一般：<b>${neutralCount}</b></span>
-      <span>有问题：<b>${badCount}</b></span>
-    `;
-    loadingEl.style.display = 'none';
-    renderFeedbackList();
-  } catch (e) {
-    console.error('读取用户反馈失败', e);
-    loadingEl.textContent = '读取失败，请确认已在 Supabase 中建好 site_feedback 表并配置好权限';
-  }
-}
-
-function renderFeedbackList() {
-  const paneEl = document.getElementById('feedbackListPane');
-  if (!paneEl) return;
-  const list = feedbackListMoodFilter === 'all'
-    ? feedbackListRawData
-    : feedbackListRawData.filter(f => f.mood === feedbackListMoodFilter);
-  paneEl.innerHTML = list.length ? list.map(f => {
-    const moodLabel = FEEDBACK_MOOD_LABEL[f.mood] || '未选择';
-    const tagClass = FEEDBACK_MOOD_TAG_CLASS[f.mood] || '';
-    const tags = Array.isArray(f.tags) ? f.tags : [];
-    const tagsHtml = tags.length ? `<div class="log-row-sub">标签：${tags.map(t => escapeHtml(t)).join('、')}</div>` : '';
-    const msgHtml = f.message
-      ? `<div class="log-row-sub">${escapeHtml(f.message)}</div>`
-      : `<div class="log-row-sub" style="color:var(--text-4)">（未填写文字意见）</div>`;
-    return `
-      <div class="log-row">
-        <div class="log-row-top">
-          <span class="log-row-tag ${tagClass}">${moodLabel}</span>
-          <span class="log-row-time">${formatLogTime(f.created_at)}</span>
-        </div>
-        ${msgHtml}
-        ${tagsHtml}
-      </div>
-    `;
-  }).join('') : '<div style="text-align:center;color:#ccc;font-size:12px;padding:20px 0">暂无反馈记录</div>';
-}
 function updateLeaveBadge() {
   // Leave entry now lives in Settings (guests) / the admin dropdown menu (admins) instead of
   // its own top-bar button, so this only needs to keep the admin menu badge in sync.
@@ -6716,7 +6636,6 @@ const SUPABASE_CONFIG = {
   songBucket: 'song-images',
   visitsTable: 'site_visits',
   loginLogsTable: 'login_logs',
-  feedbackTable: 'site_feedback',
 };
 
 let supabaseClient = null;
@@ -6832,7 +6751,6 @@ function getSharedAppStateSnapshot() {
     song_lib_songbooks: normalizeSongLibSongbookList(songLibSongbooks),
     custom_event_dates: normalizeSimpleMap(customEventDates),
     church_site: normalizeSimpleMap(churchSite),
-    global_notice: normalizeGlobalNotice(globalNotice),
   };
 }
 
@@ -6852,9 +6770,6 @@ function applyRemoteAppState(row) {
   persistCustomEventDatesLocal();
   churchSite = { logoUrl: '', bannerUrl: '', roleBgImages: {}, headerBgUrl: '', headerTextTone: 'dark', ...normalizeSimpleMap(row?.church_site || churchSite) };
   if (!churchSite.roleBgImages || typeof churchSite.roleBgImages !== 'object') churchSite.roleBgImages = {};
-  if (row && row.global_notice !== undefined) {
-    globalNotice = normalizeGlobalNotice(row.global_notice);
-  }
   if (row && row.leave_requests !== undefined) {
     leaveRequests = normalizeLeaveRequests(row.leave_requests);
     persistLeaveRequests();
@@ -6878,6 +6793,9 @@ function applyRemoteAppState(row) {
   if (row && row.song_lib_songbooks !== undefined) {
     songLibSongbooks = normalizeSongLibSongbookList(row.song_lib_songbooks);
     persistSongLibSongbooks();
+  }
+  if (row && row.global_notice !== undefined) {
+    globalNotice = normalizeGlobalNotice(row.global_notice);
   }
   updateLeaveBadge();
 }
@@ -7683,8 +7601,8 @@ async function bootstrapApp() {
   syncTopbarSpacer();
   checkSundayReminder();
   checkSaturdayReminder();
-  checkGlobalNoticeModal();
   checkSongShareLinkFromUrl();
+  maybeShowGlobalNotice();
 }
 
 bootstrapApp().finally(hideAppLoader);
