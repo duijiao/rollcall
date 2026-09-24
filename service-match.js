@@ -187,21 +187,21 @@
     root.innerHTML =
       '<div class="sm-fab-wrap" id="smFabWrap">' +
         '<div class="sm-intro-bubble" id="smIntroBubble" role="dialog" aria-label="服侍匹配测试介绍">' +
-          '<button class="sm-intro-close" id="smIntroCloseBtn" aria-label="关闭提示">×</button>' +
-          '<div class="sm-intro-title">测测你最适合什么服侍？✨</div>' +
+          '<button class="sm-intro-close" id="smIntroCloseBtn" aria-label="关闭提示"><i class="ti ti-x"></i></button>' +
+          '<div class="sm-intro-title">测测你最适合什么服侍？</div>' +
           '<div class="sm-intro-sub">2 分钟找到你的服侍位置</div>' +
           '<button class="sm-intro-cta" id="smIntroCtaBtn">开始测试</button>' +
         '</div>' +
         '<div class="sm-menu" id="smMenu" role="menu">' +
-          '<button class="sm-menu-item" data-action="quiz" role="menuitem"><span class="sm-menu-icon">🧩</span><span class="sm-menu-text"><b>服侍匹配测试</b><small>找到你的服侍位置</small></span></button>' +
-          '<button class="sm-menu-item" data-action="records" role="menuitem"><span class="sm-menu-icon">📋</span><span class="sm-menu-text">我的测试记录</span></button>' +
-          '<button class="sm-menu-item" data-action="jobs" role="menuitem"><span class="sm-menu-icon">🎯</span><span class="sm-menu-text">推荐岗位</span></button>' +
-          '<button class="sm-menu-item" data-action="bible" role="menuitem"><span class="sm-menu-icon">📖</span><span class="sm-menu-text">阅读圣经</span></button>' +
-          '<button class="sm-menu-item sm-menu-admin" data-action="adminProfiles" role="menuitem" style="display:none"><span class="sm-menu-icon">🗂️</span><span class="sm-menu-text">服侍画像（管理员）</span></button>' +
-          '<button class="sm-menu-item" data-action="settings" role="menuitem"><span class="sm-menu-icon">⚙️</span><span class="sm-menu-text">功能设置</span></button>' +
+          '<button class="sm-menu-item" data-action="quiz" role="menuitem"><span class="sm-menu-icon"><i class="ti ti-compass"></i></span><span class="sm-menu-text"><b>服侍匹配测试</b><small>找到你的服侍位置</small></span></button>' +
+          '<button class="sm-menu-item" data-action="records" role="menuitem"><span class="sm-menu-icon"><i class="ti ti-clipboard-list"></i></span><span class="sm-menu-text">我的测试记录</span></button>' +
+          '<button class="sm-menu-item" data-action="jobs" role="menuitem"><span class="sm-menu-icon"><i class="ti ti-target-arrow"></i></span><span class="sm-menu-text">推荐岗位</span></button>' +
+          '<button class="sm-menu-item" data-action="bible" role="menuitem"><span class="sm-menu-icon"><i class="ti ti-book-2"></i></span><span class="sm-menu-text">阅读圣经</span></button>' +
+          '<button class="sm-menu-item sm-menu-admin" data-action="adminProfiles" role="menuitem" style="display:none"><span class="sm-menu-icon"><i class="ti ti-folders"></i></span><span class="sm-menu-text">服侍画像（管理员）</span></button>' +
+          '<button class="sm-menu-item" data-action="settings" role="menuitem"><span class="sm-menu-icon"><i class="ti ti-settings"></i></span><span class="sm-menu-text">功能设置</span></button>' +
         '</div>' +
         '<button class="sm-fab" id="smFabBtn" aria-label="服侍匹配" aria-haspopup="true" aria-expanded="false">' +
-          '<span class="sm-fab-icon sm-fab-icon-default"><i class="ti ti-user"></i><span class="sm-fab-star">★</span></span>' +
+          '<span class="sm-fab-icon sm-fab-icon-default"><i class="ti ti-compass"></i></span>' +
           '<span class="sm-fab-icon sm-fab-icon-close"><i class="ti ti-x"></i></span>' +
         '</button>' +
       '</div>' +
