@@ -140,6 +140,136 @@
         { key: 'C', text: '「让整个聚会顺利进行。」', scores: { management: 2, execution: 1 } },
         { key: 'D', text: '「让人感受到被爱。」', scores: { care: 2, worship: 1 } }
       ]
+    },
+    {
+      id: 'q13',
+      text: '当你第一次学习一个新的服侍岗位时，你更倾向于：',
+      options: [
+        { key: 'A', text: '先看别人完整做一遍', scores: { planning: 2, technical: 1 } },
+        { key: 'B', text: '自己直接上手尝试', scores: { execution: 2, technical: 1 } },
+        { key: 'C', text: '先了解整个流程和原理', scores: { planning: 2, management: 1 } },
+        { key: 'D', text: '找熟悉的人一起研究', scores: { care: 2, planning: 1 } }
+      ]
+    },
+    {
+      id: 'q14',
+      text: '如果聚会前突然多出一项任务，你通常会：',
+      options: [
+        { key: 'A', text: '马上开始处理', scores: { execution: 2, technical: 1 } },
+        { key: 'B', text: '先确认具体要求', scores: { planning: 2, management: 1 } },
+        { key: 'C', text: '看看有没有更好的解决方法', scores: { planning: 2, execution: 1 } },
+        { key: 'D', text: '找人一起商量', scores: { management: 2, care: 1 } }
+      ]
+    },
+    {
+      id: 'q15',
+      text: '如果让你帮助准备一次聚会，你最愿意负责：',
+      options: [
+        { key: 'A', text: '整理流程和时间安排', scores: { planning: 2, management: 1 } },
+        { key: 'B', text: '检查设备和技术问题', scores: { technical: 2, execution: 1 } },
+        { key: 'C', text: '准备 PPT、图片和视觉内容', scores: { visual: 2, technical: 1 } },
+        { key: 'D', text: '接待和帮助参加聚会的人', scores: { care: 2, leader: 1 } }
+      ]
+    },
+    {
+      id: 'q16',
+      text: '团队讨论一个问题时，你通常更喜欢：',
+      options: [
+        { key: 'A', text: '直接说出自己的想法', scores: { leader: 2, execution: 1 } },
+        { key: 'B', text: '听完大家的意见再发言', scores: { care: 1, planning: 1 } },
+        { key: 'C', text: '先观察问题，再提出方案', scores: { planning: 2, technical: 1 } },
+        { key: 'D', text: '私下和熟悉的人讨论', scores: { care: 2, management: 1 } }
+      ]
+    },
+    {
+      id: 'q17',
+      text: '如果现场突然出现技术问题，你第一反应更接近：',
+      options: [
+        { key: 'A', text: '马上寻找问题原因', scores: { technical: 2, execution: 1 } },
+        { key: 'B', text: '先找一个临时替代方案', scores: { execution: 2, planning: 1 } },
+        { key: 'C', text: '联系负责的人', scores: { management: 2, care: 1 } },
+        { key: 'D', text: '先保证现场其他人不受影响', scores: { care: 2, leader: 1 } }
+      ]
+    },
+    {
+      id: 'q18',
+      text: '如果让你选择一种服侍方式，你更喜欢：',
+      options: [
+        { key: 'A', text: '在台前直接与大家互动', scores: { leader: 2, worship: 1 } },
+        { key: 'B', text: '在幕后负责技术', scores: { technical: 2, execution: 1 } },
+        { key: 'C', text: '负责整个流程和安排', scores: { management: 2, planning: 1 } },
+        { key: 'D', text: '默默帮助需要帮助的人', scores: { care: 2, execution: 1 } }
+      ]
+    },
+    {
+      id: 'q19',
+      text: '你看到一场聚会结束后，最容易注意到：',
+      options: [
+        { key: 'A', text: '哪些环节衔接得不够顺', scores: { planning: 2, management: 1 } },
+        { key: 'B', text: '哪些画面和视觉效果很好', scores: { visual: 2, worship: 1 } },
+        { key: 'C', text: '音乐和声音是否舒服', scores: { worship: 2, technical: 1 } },
+        { key: 'D', text: '有没有人被忽略', scores: { care: 2, leader: 1 } }
+      ]
+    },
+    {
+      id: 'q20',
+      text: '如果让你负责一个长期项目，你更喜欢：',
+      options: [
+        { key: 'A', text: '制定一个清晰的计划', scores: { planning: 2, management: 1 } },
+        { key: 'B', text: '边做边调整', scores: { execution: 2, technical: 1 } },
+        { key: 'C', text: '先确定最终目标，再寻找方法', scores: { planning: 2, leader: 1 } },
+        { key: 'D', text: '和团队一起慢慢推进', scores: { care: 2, management: 1 } }
+      ]
+    },
+    {
+      id: 'q21',
+      text: '如果有人第一次来到教会，你更自然的反应是：',
+      options: [
+        { key: 'A', text: '主动和他打招呼', scores: { care: 2, leader: 1 } },
+        { key: 'B', text: '观察他是否需要帮助', scores: { care: 2, planning: 1 } },
+        { key: 'C', text: '带他认识环境', scores: { care: 2, management: 1 } },
+        { key: 'D', text: '如果他主动交流，我会认真陪他聊天', scores: { care: 2, worship: 1 } }
+      ]
+    },
+    {
+      id: 'q22',
+      text: '如果给你一套新的设备，你最感兴趣的是：',
+      options: [
+        { key: 'A', text: '它到底是怎么工作的', scores: { technical: 2, planning: 1 } },
+        { key: 'B', text: '怎样把它调到最佳状态', scores: { technical: 2, execution: 1 } },
+        { key: 'C', text: '它还能不能实现其他功能', scores: { technical: 1, visual: 1 } },
+        { key: 'D', text: '有没有更简单的使用方法', scores: { execution: 2, technical: 1 } }
+      ]
+    },
+    {
+      id: 'q23',
+      text: '如果活动当天临时改变流程，你通常会：',
+      options: [
+        { key: 'A', text: '按照新的流程重新安排', scores: { management: 2, planning: 1 } },
+        { key: 'B', text: '直接根据现场情况调整', scores: { execution: 2, leader: 1 } },
+        { key: 'C', text: '找负责人确认', scores: { management: 2, care: 1 } },
+        { key: 'D', text: '先保证自己负责的部分正常完成', scores: { execution: 2, technical: 1 } }
+      ]
+    },
+    {
+      id: 'q24',
+      text: '如果让你选择一个「别人可能不太注意，但很重要」的工作，你会选择：',
+      options: [
+        { key: 'A', text: '提前检查设备', scores: { technical: 2, execution: 1 } },
+        { key: 'B', text: '整理物资和现场', scores: { management: 2, execution: 1 } },
+        { key: 'C', text: '检查 PPT、歌词和画面', scores: { visual: 2, planning: 1 } },
+        { key: 'D', text: '提前联系需要帮助的人', scores: { care: 2, management: 1 } }
+      ]
+    },
+    {
+      id: 'q25',
+      text: '如果没有人知道这件事情是你完成的，你仍然愿意做：',
+      options: [
+        { key: 'A', text: '把整个流程安排得井井有条', scores: { planning: 2, management: 1 } },
+        { key: 'B', text: '把设备和技术调试到最佳状态', scores: { technical: 2, execution: 1 } },
+        { key: 'C', text: '帮助一个刚加入的同工熟悉环境', scores: { care: 2, management: 1 } },
+        { key: 'D', text: '把现场记录下来，留下美好的画面', scores: { visual: 2, care: 1 } }
+      ]
     }
   ];
 
