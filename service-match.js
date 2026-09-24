@@ -201,8 +201,11 @@
           '<button class="sm-menu-item" data-action="settings" role="menuitem"><span class="sm-menu-icon"><i class="ti ti-settings"></i></span><span class="sm-menu-text">功能设置</span></button>' +
         '</div>' +
         '<button class="sm-fab" id="smFabBtn" aria-label="服侍匹配" aria-haspopup="true" aria-expanded="false">' +
-          '<span class="sm-fab-icon sm-fab-icon-default"><i class="ti ti-compass"></i></span>' +
-          '<span class="sm-fab-icon sm-fab-icon-close"><i class="ti ti-x"></i></span>' +
+          '<span class="sm-fab-icons">' +
+            '<i class="ti ti-heart-handshake sm-fab-ic sm-fab-ic-default"></i>' +
+            '<i class="ti ti-x sm-fab-ic sm-fab-ic-close"></i>' +
+          '</span>' +
+          '<span class="sm-fab-label-wrap"><span class="sm-fab-label">服侍匹配</span></span>' +
         '</button>' +
       '</div>' +
       '<div class="sm-overlay" id="smOverlay">' +
@@ -219,6 +222,7 @@
     maybeShowIntro();
     if (hostIsAdmin()) { var b = $('.sm-menu-admin'); if (b) b.style.display = ''; }
     watchAudioBarCollision();
+    watchScrollHide();
   }
 
   function bindStaticEvents() {
@@ -268,6 +272,8 @@
   }
   function openBible() {
     try {
+      // 与旧版「阅读圣经」悬浮按钮一致：打开圣经独立页面
+      if (typeof openBiblePage === 'function') { openBiblePage(); return; }
       if (typeof openBibleFullscreen === 'function') { openBibleFullscreen(); return; }
     } catch (e) {}
     var sec = document.getElementById('bibleSection');
@@ -821,6 +827,28 @@
   // ══════════════════════════════════════════════════
   //  悬浮按钮避让：底部音频条弹出时自动上移
   // ══════════════════════════════════════════════════
+  function watchScrollHide() {
+    var IDLE_MS = 450, timer = null, hidden = false;
+    function onScroll(e) {
+      var t = e && e.target;
+      // 忽略悬浮按钮/测试弹窗自身内部的滚动
+      if (t && t.nodeType === 1 && t.closest && t.closest('#serviceMatchRoot')) return;
+      if (!hidden) {
+        hidden = true;
+        fabWrap.classList.add('sm-scrolling');
+        if (state.menuOpen) closeMenu();
+      }
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        hidden = false;
+        fabWrap.classList.remove('sm-scrolling');
+      }, IDLE_MS);
+    }
+    // capture：页面内任意滚动容器（含 body、弹层）的滚动都能捕获
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    window.addEventListener('wheel', onScroll, { passive: true });
+  }
+
   function watchAudioBarCollision() {
     var bar = document.querySelector('.floating-audio-bar');
     if (!bar || !window.MutationObserver) return;

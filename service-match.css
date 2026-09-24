@@ -18,7 +18,7 @@
   --sm-gradient: linear-gradient(135deg, var(--sm-blue), var(--sm-indigo));
 }
 @media (prefers-reduced-motion: reduce) {
-  .sm-fab, .sm-fab-icon, .sm-menu, .sm-menu-item, .sm-intro-bubble, .sm-modal, .sm-overlay,
+  .sm-fab-wrap, .sm-fab, .sm-fab-ic, .sm-fab-label-wrap, .sm-menu, .sm-menu-item, .sm-intro-bubble, .sm-modal, .sm-overlay,
   .sm-progress-fill, .sm-option, .sm-talent-fill, .sm-result, .sm-suggest-card { transition: none !important; animation: none !important; }
 }
 
@@ -31,42 +31,45 @@
   position: fixed; right: 18px; bottom: 76px; z-index: 640; transition: bottom 0.25s ease;
 }
 .sm-fab-wrap.sm-raised { bottom: 148px; }
+/* 滚动时向右侧滑出并淡出，停止滚动后回位 */
+.sm-fab-wrap { transition: bottom 0.25s ease, transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.3s ease; }
+.sm-fab-wrap.sm-scrolling { transform: translateX(calc(100% + 24px)) scale(0.85); opacity: 0; pointer-events: none; }
 .sm-fab {
-  width: 54px; height: 54px; border-radius: 50%; border: none; cursor: pointer;
+  height: 46px; padding: 0 18px 0 14px; gap: 7px; border-radius: 999px; border: none; cursor: pointer;
   position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--sm-p) 82%, #fff) 0%, var(--sm-p) 45%, var(--sm-p-dark) 100%);
+  color: #fff; font-family: inherit; white-space: nowrap;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sm-p) 88%, #fff), var(--sm-p));
   box-shadow:
-    0 8px 22px color-mix(in srgb, var(--sm-p) 42%, transparent),
-    inset 0 1.5px 1px rgba(255,255,255,0.55),
-    inset 0 -3px 6px rgba(0,0,0,0.12);
-  transition: transform 0.22s cubic-bezier(.34,1.56,.64,1), box-shadow 0.22s ease;
+    0 6px 16px color-mix(in srgb, var(--sm-p) 38%, transparent),
+    0 1px 3px rgba(0,0,0,0.12),
+    inset 0 0 0 1px rgba(255,255,255,0.22);
+  transition: transform 0.22s cubic-bezier(.34,1.56,.64,1), padding 0.3s ease, gap 0.3s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.sm-fab::before { /* 顶部高光 */
-  content: ''; position: absolute; left: 10%; right: 10%; top: 3px; height: 46%;
-  border-radius: 50% 50% 60% 60% / 80% 80% 40% 40%;
-  background: linear-gradient(to bottom, rgba(255,255,255,0.5), rgba(255,255,255,0));
-  pointer-events: none;
+.sm-fab:hover { transform: scale(1.04); }
+.sm-fab:active { transform: scale(0.95); }
+.sm-fab-icons { position: relative; width: 22px; height: 22px; flex-shrink: 0; }
+.sm-fab-ic {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 22px;
+  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(.34,1.56,.64,1);
 }
-.sm-fab:hover { transform: scale(1.06); }
-.sm-fab:active { transform: scale(0.93); }
-.sm-fab-icon {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 25px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.18));
-  transition: opacity 0.2s ease, transform 0.28s cubic-bezier(.34,1.56,.64,1);
-}
-.sm-fab-icon-close { opacity: 0; transform: scale(0.5) rotate(-90deg); font-size: 22px; }
-.sm-fab-wrap.menu-open .sm-fab-icon-default { opacity: 0; transform: scale(0.5) rotate(90deg); }
-.sm-fab-wrap.menu-open .sm-fab-icon-close { opacity: 1; transform: scale(1) rotate(0deg); }
-@media (max-width: 480px) { .sm-fab { width: 50px; height: 50px; } .sm-fab-icon { font-size: 23px; } .sm-fab-wrap { right: 16px; bottom: 72px; } }
+.sm-fab-ic-close { opacity: 0; transform: scale(0.5) rotate(-90deg); font-size: 20px; }
+.sm-fab-label-wrap { display: grid; grid-template-columns: 1fr; transition: grid-template-columns 0.3s ease, opacity 0.2s ease; }
+.sm-fab-label { min-width: 0; overflow: hidden; font-size: 13.5px; font-weight: 600; letter-spacing: 0.3px; }
+/* 展开：胶囊收成圆形，图标变 ✕ */
+.sm-fab-wrap.menu-open .sm-fab { padding: 0 12px; gap: 0; }
+.sm-fab-wrap.menu-open .sm-fab-label-wrap { grid-template-columns: 0fr; opacity: 0; }
+.sm-fab-wrap.menu-open .sm-fab-ic-default { opacity: 0; transform: scale(0.5) rotate(90deg); }
+.sm-fab-wrap.menu-open .sm-fab-ic-close { opacity: 1; transform: scale(1) rotate(0deg); }
+@media (max-width: 480px) { .sm-fab-wrap { right: 16px; bottom: 72px; } }
 
 /* ── 液态玻璃面板（菜单 / 提示气泡共用）─────────────── */
 .sm-menu, .sm-intro-bubble {
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.38) 45%, rgba(255,255,255,0.55) 100%),
+    linear-gradient(135deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.30) 45%, rgba(255,255,255,0.46) 100%),
     color-mix(in srgb, var(--sm-p) 6%, transparent);
-  -webkit-backdrop-filter: blur(22px) saturate(180%) brightness(1.05);
-  backdrop-filter: blur(22px) saturate(180%) brightness(1.05);
+  -webkit-backdrop-filter: blur(16px) saturate(190%) brightness(1.04);
+  backdrop-filter: blur(16px) saturate(190%) brightness(1.04);
   border: 1px solid var(--sm-glass-border);
   border-radius: 24px;
   box-shadow:
@@ -89,7 +92,7 @@
 
 /* ── 展开菜单 ─────────────────────────────────────── */
 .sm-menu {
-  position: absolute; right: 0; bottom: 66px; width: 236px; max-width: calc(100vw - 32px);
+  position: absolute; right: 0; bottom: 58px; width: 236px; max-width: calc(100vw - 32px);
   padding: 8px; display: flex; flex-direction: column; gap: 2px;
   opacity: 0; transform: scale(0.85) translateY(14px); transform-origin: bottom right;
   pointer-events: none;
@@ -128,7 +131,7 @@
 
 /* ── 首次提示气泡 ─────────────────────────────────── */
 .sm-intro-bubble {
-  position: absolute; right: 0; bottom: 66px; width: 240px; max-width: calc(100vw - 32px);
+  position: absolute; right: 0; bottom: 58px; width: 240px; max-width: calc(100vw - 32px);
   padding: 16px 16px 14px; opacity: 0; transform: translateY(10px) scale(0.94);
   transform-origin: bottom right; pointer-events: none;
   transition: opacity 0.3s ease, transform 0.38s cubic-bezier(.34,1.4,.64,1);
