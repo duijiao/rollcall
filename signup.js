@@ -377,7 +377,9 @@ function spLogout(){
   document.getElementById('spManagerOverlay').classList.remove('open');
 }
 function spUpdateAdminUI(){
-  document.getElementById('spAdminFabLabel').textContent = spIsAdmin ? '管理活动' : '管理';
+  const btn = document.getElementById('spAdminBtn');
+  btn.classList.toggle('is-admin', spIsAdmin);
+  btn.title = spIsAdmin ? '管理活动' : '管理员登录';
 }
 function spAdminFabClick(){
   if(!spIsAdmin) spOpenLogin(); else spOpenManager();
