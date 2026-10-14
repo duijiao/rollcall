@@ -67,6 +67,7 @@ function spNormEvent(raw){
     timeEnd: src.timeEnd || '',
     location: src.location || '',
     address: src.address || '',
+    introTitle: src.introTitle || '',
     intro: src.intro || '',
     highlights: Array.isArray(src.highlights) ? src.highlights.filter(Boolean) : [],
     detailTitle: src.detailTitle || '活动详情',
@@ -134,7 +135,7 @@ function spPaintCta(e, st){
   else if(st && st.full) why = '名额已满';
   bar.innerHTML = why
     ? `<button class="sp-cta-btn disabled" disabled><i class="ti ti-lock"></i>${why}</button>`
-    : `<button class="sp-cta-btn" onclick="spGoForm('${e.id}')"><i class="ti ti-user-plus"></i>${spEscapeHtml(e.ctaText||'立即报名')}</button>`;
+    : `<button class="sp-cta-btn" onclick="spGoForm('${e.id}')"><i class="ti ti-user-plus"></i>${spEscapeHtml(e.ctaText||'立即报名')}<i class="ti ti-chevron-right sp-cta-arrow"></i></button>`;
 }
 async function spLoadCapacity(e){
   if(!e.capacity) return;
@@ -254,6 +255,7 @@ function spRender(){
   const share = document.getElementById('spShareBtn');
   const title = document.getElementById('spTopbarTitle');
   const body = document.getElementById('spBody');
+  const shell = document.querySelector('.sp-shell'); if(shell) shell.dataset.view = spView;
   const canBack = (spView==='form') || (spView==='detail' && spEnabledEvents().length>1) || (spView==='success');
   back.classList.toggle('ghost', !canBack);
   share.classList.toggle('ghost', spView!=='detail');
@@ -291,30 +293,49 @@ function spRenderList(body){
   spLoadListCaps(list);
 }
 
+function spHighlightIcon(t){
+  t = String(t||'');
+  if(/敬拜|赞美|诗歌|音乐|歌/.test(t)) return 'ti-music';
+  if(/团契|聚会|相交|家庭|小组|交通/.test(t)) return 'ti-users';
+  if(/圣经|查经|讲道|信息|分享|真理/.test(t)) return 'ti-book-2';
+  if(/游戏|互动|运动/.test(t)) return 'ti-device-gamepad-2';
+  if(/餐|饭|美食|茶点|点心|爱宴/.test(t)) return 'ti-tools-kitchen-2';
+  if(/祷告|祈祷|代祷/.test(t)) return 'ti-heart-handshake';
+  if(/见证|生命|成长/.test(t)) return 'ti-plant-2';
+  if(/免费|名额/.test(t)) return 'ti-ticket';
+  return 'ti-sparkles';
+}
 function spRenderDetail(body){
   const e = spGetEvent(spCurrentId);
   if(!e){ body.innerHTML = `<div class="sp-empty"><i class="ti ti-calendar-off"></i><div>活动不存在或已下线</div></div>`; return; }
   document.getElementById('spPageTitle').textContent = e.title || '活动报名';
+  const timeStr = `${spFormatDate(e.date)} ${spEscapeHtml(e.timeStart)}${e.timeEnd?'-'+spEscapeHtml(e.timeEnd):''}`.trim();
+  const hasIntro = !!(e.introTitle || e.intro || e.highlights.length);
   body.innerHTML = `
-    <div class="sp-cover-wrap">${e.coverImage?`<img class="sp-cover" src="${spEscapeHtml(e.coverImage)}">`:''}</div>
+    <div class="sp-cover-wrap${e.coverImage?'':' empty'}">${e.coverImage?`<img class="sp-cover" src="${spEscapeHtml(e.coverImage)}" alt="">`:''}</div>
     <div class="sp-detail-card">
       ${e.tag?`<span class="sp-tag-pill">${spEscapeHtml(e.tag)}</span>`:''}
       <h1 class="sp-title">${spEscapeHtml(e.title)}</h1>
-      <div class="sp-meta-row"><i class="ti ti-calendar-event"></i><span>${spFormatDate(e.date)} ${spEscapeHtml(e.timeStart)}${e.timeEnd?'-'+spEscapeHtml(e.timeEnd):''}</span></div>
-      ${e.location?`<div class="sp-meta-row"><i class="ti ti-map-pin"></i><span>${spEscapeHtml(e.location)}${e.address?`（${spEscapeHtml(e.address)}）`:''}</span></div>`:''}
+      ${timeStr?`<div class="sp-meta-row"><i class="ti ti-calendar-event"></i><span>${timeStr}</span></div>`:''}
+      ${e.location?`<div class="sp-meta-row"><i class="ti ti-map-pin-filled"></i><span>${spEscapeHtml(e.location)}${e.address?`（${spEscapeHtml(e.address)}）`:''}</span></div>`:''}
       ${spDeadlineTs(e)!=null?`<div class="sp-meta-row"><i class="ti ti-hourglass-high"></i><span>报名截止：${spFmtDeadline(e)}${spDeadlinePassed(e)?'（已截止）':''}</span></div>`:''}
       <div id="spCapBox"></div>
-      ${e.intro?`<p class="sp-intro">${spEscapeHtml(e.intro)}</p>`:''}
-      ${e.highlights.length?`<div class="sp-highlights">${e.highlights.map(h=>`<span class="sp-highlight-pill">${spEscapeHtml(h)}</span>`).join('')}</div>`:''}
-      <hr class="sp-divider">
-      <div class="sp-detail-section-title">${spEscapeHtml(e.detailTitle||'活动详情')}</div>
-      <p class="sp-detail-text">${spEscapeHtml(e.detail)}</p>
+      ${hasIntro?`<hr class="sp-divider">
+        ${e.introTitle?`<div class="sp-sec-head"><i class="ti ti-users-group"></i><span>${spEscapeHtml(e.introTitle)}</span></div>`:''}
+        ${e.intro?`<p class="sp-intro">${spEscapeHtml(e.intro)}</p>`:''}
+        ${e.highlights.length?`<div class="sp-highlights">${e.highlights.map(h=>`<span class="sp-highlight-pill"><i class="ti ${spHighlightIcon(h)}"></i>${spEscapeHtml(h)}</span>`).join('')}</div>`:''}`:''}
     </div>
+    ${e.detail&&e.detail.trim()?`<div class="sp-detail-card second">
+      <div class="sp-sec-head"><i class="ti ti-file-text"></i><span>${spEscapeHtml(e.detailTitle||'活动详情')}</span></div>
+      <div class="sp-sec-underline"></div>
+      <p class="sp-detail-text">${spEscapeHtml(e.detail)}</p>
+    </div>`:''}
   `;
   document.getElementById('spBody').insertAdjacentHTML('beforeend', `<div class="sp-cta-bar" id="spCtaBar"></div>`);
   spPaintCta(e, null);
   spLoadCapacity(e);
 }
+
 
 function spRenderFieldHtml(f){
   const req = f.required ? `<span class="sp-required-dot">*</span>` : '';
@@ -559,6 +580,7 @@ function spOpenEditor(id){
   document.getElementById('spfTimeEnd').value = e.timeEnd;
   document.getElementById('spfLocation').value = e.location;
   document.getElementById('spfAddress').value = e.address;
+  document.getElementById('spfIntroTitle').value = e.introTitle;
   document.getElementById('spfIntro').value = e.intro;
   document.getElementById('spfHighlights').value = e.highlights.join(',');
   document.getElementById('spfDetailTitle').value = e.detailTitle;
@@ -663,6 +685,7 @@ async function spSaveEvent(){
     timeEnd: document.getElementById('spfTimeEnd').value,
     location: document.getElementById('spfLocation').value.trim(),
     address: document.getElementById('spfAddress').value.trim(),
+    introTitle: document.getElementById('spfIntroTitle').value.trim(),
     intro: document.getElementById('spfIntro').value,
     highlights: document.getElementById('spfHighlights').value.split(',').map(s=>s.trim()).filter(Boolean),
     detailTitle: document.getElementById('spfDetailTitle').value.trim() || '活动详情',
@@ -1025,7 +1048,7 @@ async function spSaveNote(id, el){
   if(await spUpdateSubs(id, { admin_note: val || null })){ el.dataset.orig = val; spToast('备注已保存'); }
 }
 let spUndoTm = null;
-const SP_BUILD = '20261014d';
+const SP_BUILD = '20261014f';
 // 撤销提示条：由 JS 动态创建、样式全部内联，不依赖 HTML 结构和 CSS 文件是否为最新
 function spEnsureUndoEl(){
   let box = document.getElementById('spUndoToast');
