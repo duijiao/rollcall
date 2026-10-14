@@ -330,6 +330,6 @@ body{
 .sp-note:focus{border-color:var(--primary)}
 .sp-sub-foot{flex-wrap:wrap}
 .sp-more-btn{width:100%; border:none; background:var(--bg-subtle); color:var(--text-2); font-size:13px; font-weight:700; font-family:inherit; padding:11px; border-radius:12px; cursor:pointer; margin:2px 0 10px}
-.sp-undo{position:fixed; left:50%; bottom:70px; transform:translate(-50%,12px); background:rgba(26,26,26,.94); color:#fff; font-size:13px; padding:8px 8px 8px 14px; border-radius:999px; z-index:1000; display:flex; align-items:center; gap:8px; opacity:0; pointer-events:none; transition:.2s; max-width:92vw}
+.sp-undo{position:fixed; right:auto; left:50%; bottom:70px; transform:translate(-50%,12px); background:rgba(26,26,26,.94); color:#fff; font-size:13px; padding:8px 8px 8px 14px; border-radius:999px; z-index:1000; display:flex; align-items:center; gap:8px; opacity:0; pointer-events:none; transition:.2s; max-width:92vw}
 .sp-undo.show{opacity:1; pointer-events:auto; transform:translate(-50%,0)}
 .sp-undo button{border:none; background:rgba(255,255,255,.16); color:#7ef0c6; font-weight:800; font-size:12.5px; font-family:inherit; padding:6px 13px; border-radius:999px; cursor:pointer}
