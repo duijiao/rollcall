@@ -257,7 +257,11 @@ function spRender(){
   const canBack = (spView==='form') || (spView==='detail' && spEnabledEvents().length>1) || (spView==='success');
   back.classList.toggle('ghost', !canBack);
   share.classList.toggle('ghost', spView!=='detail');
-  title.textContent = spView==='list' ? '报名活动' : (spView==='form' ? '报名参与' : '');
+  const curEv = spGetEvent(spCurrentId);
+  title.textContent = spView==='detail' ? ((curEv && curEv.title) || '活动报名')
+    : spView==='form' ? '报名参与'
+    : spView==='success' ? '报名成功'
+    : '报名活动';
 
   if(spView==='empty'){
     body.innerHTML = `<div class="sp-empty"><i class="ti ti-calendar-off"></i><div>暂无报名活动</div></div>`;
@@ -500,6 +504,10 @@ async function spLoadCounts(){
 }
 function spOpenManager(){
   spRenderManagerList();
+  const mw = document.getElementById('spManagerList');
+  let bt = document.getElementById('spBuildTag');
+  if(!bt && mw && mw.parentNode){ bt = document.createElement('div'); bt.id='spBuildTag'; bt.style.cssText='text-align:center;font-size:10.5px;color:#b0b4bd;padding:10px 0 2px'; mw.parentNode.insertBefore(bt, mw.nextSibling); }
+  if(bt) bt.textContent = '页面版本 ' + SP_BUILD;
   document.getElementById('spManagerOverlay').classList.add('open');
   spLoadCounts();
 }
@@ -1017,18 +1025,33 @@ async function spSaveNote(id, el){
   if(await spUpdateSubs(id, { admin_note: val || null })){ el.dataset.orig = val; spToast('备注已保存'); }
 }
 let spUndoTm = null;
+const SP_BUILD = '20261014d';
+// 撤销提示条：由 JS 动态创建、样式全部内联，不依赖 HTML 结构和 CSS 文件是否为最新
+function spEnsureUndoEl(){
+  let box = document.getElementById('spUndoToast');
+  if(box) return box;
+  box = document.createElement('div');
+  box.id = 'spUndoToast';
+  box.style.cssText = 'display:none;position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:2147483000;align-items:center;gap:8px;max-width:92vw;padding:8px 8px 8px 14px;border-radius:999px;background:rgba(26,26,26,.94);color:#fff;font-size:13px;line-height:1.2;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:opacity .2s;opacity:0';
+  box.innerHTML = '<span id="spUndoMsg" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span><button id="spUndoBtn" type="button" style="border:none;background:rgba(255,255,255,.16);color:#7ef0c6;font-weight:800;font-size:12.5px;font-family:inherit;padding:6px 13px;border-radius:999px;cursor:pointer;flex-shrink:0">撤销</button>';
+  document.body.appendChild(box);
+  return box;
+}
+// 清理旧版 HTML 里残留的静态提示条（旧版曾直接写在页面里）
+(function(){ const old = document.getElementById('spUndo'); if(old) old.remove(); })();
 function spHideUndo(){
-  const box = document.getElementById('spUndo'); if(!box) return;
-  box.classList.remove('show'); clearTimeout(spUndoTm);
+  const box = document.getElementById('spUndoToast'); if(!box) return;
+  clearTimeout(spUndoTm);
+  box.style.opacity = '0';
   spUndoTm = setTimeout(()=>{ box.style.display = 'none'; }, 220);
 }
 function spUndoToast(msg, fn){
-  const box = document.getElementById('spUndo');
-  document.getElementById('spUndoMsg').textContent = msg;
-  document.getElementById('spUndoBtn').onclick = ()=>{ spHideUndo(); fn(); };
+  const box = spEnsureUndoEl();
+  box.querySelector('#spUndoMsg').textContent = msg;
+  box.querySelector('#spUndoBtn').onclick = ()=>{ spHideUndo(); fn(); };
   clearTimeout(spUndoTm);
   box.style.display = 'flex';
-  requestAnimationFrame(()=>box.classList.add('show'));
+  requestAnimationFrame(()=>{ box.style.opacity = '1'; });
   spUndoTm = setTimeout(spHideUndo, 7000);
 }
 async function spDeleteSubmission(id){ return spSoftDelete([String(id)]); }
