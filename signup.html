@@ -109,14 +109,30 @@
 
 <!-- 报名数据查看 -->
 <div class="sp-overlay" id="spSubsOverlay" onclick="spCloseOverlay(event,'spSubsOverlay')" style="z-index:510">
-  <div class="sp-sheet" onclick="event.stopPropagation()">
+  <div class="sp-sheet sp-subs-sheet" onclick="event.stopPropagation()">
     <button class="sp-sheet-close" onclick="spCloseOverlay(null,'spSubsOverlay')"><i class="ti ti-x"></i></button>
     <div class="sp-sheet-handle"></div>
-    <div class="sp-sheet-title" id="spSubsTitle">报名数据</div>
-    <div style="display:flex;gap:8px;margin:10px 0 14px">
-      <button class="sp-btn sp-btn-ghost" onclick="spExportSubsCSV()"><i class="ti ti-download" style="font-size:13px;margin-right:3px"></i>导出 CSV</button>
-      <button class="sp-btn sp-btn-ghost" onclick="spLoadSubmissions()"><i class="ti ti-refresh" style="font-size:13px;margin-right:3px"></i>刷新</button>
+    <div class="sp-subs-head">
+      <div class="sp-subs-head-icon"><i class="ti ti-users-group"></i></div>
+      <div style="min-width:0">
+        <div class="sp-sheet-title" id="spSubsTitle">报名数据</div>
+        <div class="sp-subs-sub" id="spSubsSub"></div>
+      </div>
     </div>
+
+    <div class="sp-stats" id="spSubsStats"></div>
+
+    <div class="sp-subs-toolbar">
+      <div class="sp-search">
+        <i class="ti ti-search"></i>
+        <input type="text" id="spSubsSearch" placeholder="搜索姓名、电话等…" oninput="spRenderSubs()">
+        <button class="sp-search-clear" id="spSubsSearchClear" onclick="spClearSubsSearch()"><i class="ti ti-x"></i></button>
+      </div>
+      <button class="sp-tool-btn" title="切换排序" id="spSubsSortBtn" onclick="spToggleSubsSort()"><i class="ti ti-sort-descending"></i></button>
+      <button class="sp-tool-btn" title="刷新" onclick="spLoadSubmissions()"><i class="ti ti-refresh"></i></button>
+      <button class="sp-tool-btn primary" title="导出 CSV" onclick="spExportSubsCSV()"><i class="ti ti-download"></i></button>
+    </div>
+
     <div id="spSubsList"></div>
   </div>
 </div>

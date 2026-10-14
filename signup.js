@@ -572,34 +572,177 @@ async function spOpenSubmissions(eventId){
   spSubsCurrentEvent = spGetEvent(eventId);
   document.getElementById('spSubsTitle').textContent = '报名数据 · ' + (spSubsCurrentEvent ? spSubsCurrentEvent.title : '');
   document.getElementById('spManagerOverlay').classList.remove('open');
+  document.getElementById('spSubsSearch').value = '';
   document.getElementById('spSubsOverlay').classList.add('open');
   await spLoadSubmissions();
 }
+let spSubsSortDesc = true;
+const SP_AVATAR_COLORS = ['#1D9E75','#4C8DF6','#F2994A','#9B6BDF','#E6484F','#17A2B8','#D4A017','#6C7A89'];
+
+// 根据字段名推断图标：优先匹配活动里定义的字段类型，其次按关键词猜测
+function spIconForLabel(label){
+  const ev = spSubsCurrentEvent;
+  const f = ev && ev.fields ? ev.fields.find(x=>x.label===label) : null;
+  const l = String(label||'');
+  if(/姓名|名字|称呼/.test(l)) return 'ti-user';
+  if(/手机|电话|微信|whatsapp/i.test(l)) return 'ti-phone';
+  if(/邮箱|email|mail/i.test(l)) return 'ti-mail';
+  if(/人数|几人|陪同/.test(l)) return 'ti-users';
+  if(/备注|需要|留言|说明/.test(l)) return 'ti-message-2';
+  if(/地址|地点/.test(l)) return 'ti-map-pin';
+  if(f) return spFieldIcon(f.type);
+  return 'ti-point';
+}
+function spFieldTypeOf(label){
+  const f = spSubsCurrentEvent && spSubsCurrentEvent.fields ? spSubsCurrentEvent.fields.find(x=>x.label===label) : null;
+  if(f) return f.type;
+  if(/手机|电话/.test(label)) return 'tel';
+  if(/邮箱|email/i.test(label)) return 'email';
+  return 'text';
+}
+// 找出「主要人名」「联系电话」「人数」
+function spPickKey(vals, type, regex){
+  const keys = Object.keys(vals);
+  let k = keys.find(x=>regex.test(x));
+  if(!k && spSubsCurrentEvent){
+    const f = spSubsCurrentEvent.fields.find(x=>x.type===type && keys.includes(x.label));
+    if(f) k = f.label;
+  }
+  return k;
+}
+function spSubSummary(s){
+  const vals = s.values || {};
+  const nameKey = spPickKey(vals,'text',/姓名|名字|称呼/) || Object.keys(vals)[0];
+  const telKey = spPickKey(vals,'tel',/手机|电话/);
+  const numKey = Object.keys(vals).find(k=>/人数|几人|陪同/.test(k)) || spPickKey(vals,'number',/^$/);
+  const name = String((nameKey && vals[nameKey]) || '未填写姓名');
+  const num = numKey && Number(vals[numKey]) ? Number(vals[numKey]) : null;
+  return { name, nameKey, telKey, numKey, num, tel: telKey ? String(vals[telKey]||'') : '' };
+}
+function spRelTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso), diff = (Date.now()-d.getTime())/1000;
+  if(diff<60) return '刚刚';
+  if(diff<3600) return Math.floor(diff/60)+' 分钟前';
+  if(diff<86400) return Math.floor(diff/3600)+' 小时前';
+  if(diff<86400*7) return Math.floor(diff/86400)+' 天前';
+  return d.toLocaleDateString('zh-CN');
+}
+function spFmtFull(iso){ return iso ? new Date(iso).toLocaleString('zh-CN') : ''; }
+
+function spRenderSubsStats(){
+  const list = spSubsCache;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayCnt = list.filter(s=>s.created_at && new Date(s.created_at)>=today).length;
+  const people = list.reduce((n,s)=>n+(spSubSummary(s).num||0),0);
+  document.getElementById('spSubsStats').innerHTML = `
+    <div class="sp-stat accent"><div class="sp-stat-top"><i class="ti ti-clipboard-check"></i>报名总数</div><div class="sp-stat-num">${list.length}</div></div>
+    <div class="sp-stat"><div class="sp-stat-top"><i class="ti ti-calendar-plus"></i>今日新增</div><div class="sp-stat-num">${todayCnt}</div></div>
+    <div class="sp-stat"><div class="sp-stat-top"><i class="ti ti-users"></i>预计人数</div><div class="sp-stat-num">${people||'—'}</div></div>`;
+  const last = list[0] && list.length ? list.reduce((a,b)=>new Date(a.created_at)>new Date(b.created_at)?a:b) : null;
+  document.getElementById('spSubsSub').innerHTML = last ? `<i class="ti ti-clock"></i>最近报名 ${spRelTime(last.created_at)}` : '';
+}
+
+function spValueHtml(label, v){
+  const type = spFieldTypeOf(label);
+  const isEmpty = v==null || v==='' || (Array.isArray(v) && !v.length);
+  if(isEmpty) return `<div class="sp-sub-item-val empty">未填写</div>`;
+  if(Array.isArray(v)) return `<div class="sp-val-chips">${v.map(x=>`<span class="sp-val-chip">${spEscapeHtml(x)}</span>`).join('')}</div>`;
+  const t = spEscapeHtml(v);
+  if(type==='tel') return `<div class="sp-sub-item-val"><a href="tel:${t}">${t}</a></div>`;
+  if(type==='email') return `<div class="sp-sub-item-val"><a href="mailto:${t}">${t}</a></div>`;
+  if(type==='radio' || type==='select') return `<div class="sp-val-chips"><span class="sp-val-chip">${t}</span></div>`;
+  return `<div class="sp-sub-item-val">${t}</div>`;
+}
+
+function spRenderSubs(){
+  const wrap = document.getElementById('spSubsList');
+  const q = (document.getElementById('spSubsSearch').value||'').trim().toLowerCase();
+  document.getElementById('spSubsSearchClear').classList.toggle('show', !!q);
+  let list = spSubsCache.slice();
+  if(q) list = list.filter(s=>Object.values(s.values||{}).some(v=>String(Array.isArray(v)?v.join(' '):v).toLowerCase().includes(q)));
+  list.sort((a,b)=>{ const d = new Date(a.created_at)-new Date(b.created_at); return spSubsSortDesc ? -d : d; });
+  if(!spSubsCache.length){
+    wrap.innerHTML = `<div class="sp-subs-empty"><i class="ti ti-inbox"></i>暂无报名记录<br>分享活动链接，等待第一位报名者吧</div>`; return;
+  }
+  if(!list.length){
+    wrap.innerHTML = `<div class="sp-subs-empty"><i class="ti ti-search-off"></i>没有找到与“${spEscapeHtml(q)}”相关的记录</div>`; return;
+  }
+  const dayAgo = Date.now() - 86400000;
+  wrap.innerHTML = list.map(s=>{
+    const vals = s.values || {};
+    const sm = spSubSummary(s);
+    const color = SP_AVATAR_COLORS[(s.id!=null ? Number(s.id) : sm.name.charCodeAt(0)) % SP_AVATAR_COLORS.length] || SP_AVATAR_COLORS[0];
+    const isNew = s.created_at && new Date(s.created_at).getTime() > dayAgo;
+    const items = Object.keys(vals).map(k=>{
+      const raw = vals[k];
+      const copyable = !(raw==null||raw===''||(Array.isArray(raw)&&!raw.length));
+      const copyText = Array.isArray(raw) ? raw.join('、') : String(raw==null?'':raw);
+      return `<div class="sp-sub-item">
+        <div class="sp-sub-item-icon"><i class="ti ${spIconForLabel(k)}"></i></div>
+        <div class="sp-sub-item-body"><div class="sp-sub-item-label">${spEscapeHtml(k)}</div>${spValueHtml(k, raw)}</div>
+        ${copyable ? `<div class="sp-sub-item-act"><button class="sp-mini-icon-btn" title="复制" onclick="spCopyText(decodeURIComponent('${encodeURIComponent(copyText)}'))"><i class="ti ti-copy"></i></button></div>` : ''}
+      </div>`;
+    }).join('');
+    return `<div class="sp-sub-card" id="spSub_${s.id}">
+      <div class="sp-sub-head" onclick="spToggleSub('${s.id}')">
+        <div class="sp-sub-avatar" style="background:${color}">${spEscapeHtml(sm.name.trim().charAt(0).toUpperCase()||'?')}</div>
+        <div class="sp-sub-main">
+          <div class="sp-sub-name">${spEscapeHtml(sm.name)}${isNew?'<span class="sp-sub-new">NEW</span>':''}</div>
+          <div class="sp-sub-time"><i class="ti ti-clock"></i>${spRelTime(s.created_at)}${sm.tel?` · <i class="ti ti-phone"></i>${spEscapeHtml(sm.tel)}`:''}</div>
+        </div>
+        ${sm.num?`<span class="sp-sub-badge"><i class="ti ti-users"></i>${sm.num}人</span>`:''}
+        <i class="ti ti-chevron-down sp-sub-chevron"></i>
+      </div>
+      <div class="sp-sub-detail">
+        ${items}
+        <div class="sp-sub-item"><div class="sp-sub-item-icon"><i class="ti ti-calendar-time"></i></div>
+          <div class="sp-sub-item-body"><div class="sp-sub-item-label">提交时间</div><div class="sp-sub-item-val">${spFmtFull(s.created_at)}</div></div></div>
+        <div class="sp-sub-foot">
+          ${sm.tel?`<a class="sp-btn sp-btn-ghost" href="tel:${spEscapeHtml(sm.tel)}" style="text-decoration:none"><i class="ti ti-phone-call"></i>拨打电话</a>`:''}
+          <button class="sp-btn sp-btn-danger" onclick="spDeleteSubmission(${s.id})"><i class="ti ti-trash"></i>删除</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function spToggleSub(id){ const el = document.getElementById('spSub_'+id); if(el) el.classList.toggle('open'); }
+function spClearSubsSearch(){ const i = document.getElementById('spSubsSearch'); i.value=''; spRenderSubs(); i.focus(); }
+function spToggleSubsSort(){
+  spSubsSortDesc = !spSubsSortDesc;
+  document.querySelector('#spSubsSortBtn i').className = 'ti ' + (spSubsSortDesc ? 'ti-sort-descending' : 'ti-sort-ascending');
+  spToast(spSubsSortDesc ? '按时间：最新优先' : '按时间：最早优先');
+  spRenderSubs();
+}
+async function spCopyText(text){
+  try{ await navigator.clipboard.writeText(text); spToast('已复制'); }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); spToast('已复制'); }catch(_){ spToast('复制失败'); }
+    document.body.removeChild(ta);
+  }
+}
+
 async function spLoadSubmissions(){
   const wrap = document.getElementById('spSubsList');
-  wrap.innerHTML = `<div style="font-size:12.5px;color:var(--text-3);text-align:center;padding:16px 0">加载中…</div>`;
+  const refreshBtn = document.querySelector('.sp-subs-toolbar .sp-tool-btn[title="刷新"]');
+  if(refreshBtn) refreshBtn.classList.add('spin');
+  wrap.innerHTML = '<div class="sp-skel"></div><div class="sp-skel"></div><div class="sp-skel"></div>';
   try{
     const client = spInitClient();
     const { data, error } = await client.from(SP_CONFIG.submissionsTable)
       .select('*').eq('event_id', spSubsCurrentEvent.id).order('created_at', { ascending:false }).limit(500);
     if(error) throw error;
     spSubsCache = data || [];
-    if(!spSubsCache.length){ wrap.innerHTML = `<div style="font-size:12.5px;color:var(--text-3);text-align:center;padding:16px 0">暂无报名记录</div>`; return; }
-    wrap.innerHTML = spSubsCache.map(s=>{
-      const vals = s.values || {};
-      const rows = Object.keys(vals).map(k=>`<div class="sp-sub-row-val"><b>${spEscapeHtml(k)}：</b>${spEscapeHtml(Array.isArray(vals[k])?vals[k].join('、'):vals[k])}</div>`).join('');
-      const t = s.created_at ? new Date(s.created_at).toLocaleString('zh-CN') : '';
-      return `<div class="sp-sub-row">
-        <div style="flex:1;min-width:0">
-          <div class="sp-sub-row-time">${t}</div>
-          ${rows}
-        </div>
-        <button class="sp-mini-icon-btn danger" onclick="spDeleteSubmission(${s.id})"><i class="ti ti-trash"></i></button>
-      </div>`;
-    }).join('');
+    spRenderSubsStats();
+    spRenderSubs();
   }catch(err){
     console.error(err);
-    wrap.innerHTML = `<div style="font-size:12.5px;color:var(--text-3);text-align:center;padding:16px 0">加载失败，请检查后台是否已建好 ${SP_CONFIG.submissionsTable} 表</div>`;
+    spSubsCache = [];
+    spRenderSubsStats();
+    wrap.innerHTML = `<div class="sp-subs-empty"><i class="ti ti-cloud-off"></i>加载失败，请检查后台是否已建好 ${SP_CONFIG.submissionsTable} 表</div>`;
+  }finally{
+    if(refreshBtn) refreshBtn.classList.remove('spin');
   }
 }
 async function spDeleteSubmission(id){
