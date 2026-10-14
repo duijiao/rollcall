@@ -1017,12 +1017,19 @@ async function spSaveNote(id, el){
   if(await spUpdateSubs(id, { admin_note: val || null })){ el.dataset.orig = val; spToast('备注已保存'); }
 }
 let spUndoTm = null;
+function spHideUndo(){
+  const box = document.getElementById('spUndo'); if(!box) return;
+  box.classList.remove('show'); clearTimeout(spUndoTm);
+  spUndoTm = setTimeout(()=>{ box.style.display = 'none'; }, 220);
+}
 function spUndoToast(msg, fn){
   const box = document.getElementById('spUndo');
   document.getElementById('spUndoMsg').textContent = msg;
-  document.getElementById('spUndoBtn').onclick = ()=>{ box.classList.remove('show'); clearTimeout(spUndoTm); fn(); };
-  box.classList.add('show');
-  clearTimeout(spUndoTm); spUndoTm = setTimeout(()=>box.classList.remove('show'), 7000);
+  document.getElementById('spUndoBtn').onclick = ()=>{ spHideUndo(); fn(); };
+  clearTimeout(spUndoTm);
+  box.style.display = 'flex';
+  requestAnimationFrame(()=>box.classList.add('show'));
+  spUndoTm = setTimeout(spHideUndo, 7000);
 }
 async function spDeleteSubmission(id){ return spSoftDelete([String(id)]); }
 async function spSoftDelete(ids){
