@@ -205,3 +205,61 @@ body{
 .sp-subs-empty i{font-size:38px; color:var(--text-4)}
 .sp-skel{height:66px; border-radius:16px; margin-bottom:10px; background:linear-gradient(90deg,var(--bg-subtle) 25%,var(--bg-subtle-2) 50%,var(--bg-subtle) 75%); background-size:200% 100%; animation:spSkel 1.2s infinite}
 @keyframes spSkel{from{background-position:200% 0} to{background-position:-200% 0}}
+
+/* ── 图表 / 批量 / 导出菜单 ───────────── */
+.sp-subs-bar2{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px}
+.sp-seg{display:inline-flex; background:var(--bg-subtle); border-radius:11px; padding:3px}
+.sp-seg button{border:none; background:transparent; color:var(--text-3); font-size:12.5px; font-weight:700; font-family:inherit; padding:6px 12px; border-radius:9px; display:flex; align-items:center; gap:4px; cursor:pointer}
+.sp-seg button.active{background:#fff; color:var(--primary); box-shadow:var(--shadow-sm)}
+.sp-bar2-right{display:flex; align-items:center; gap:6px}
+.sp-chip-btn{border:none; background:var(--bg-subtle); color:var(--text-2); font-size:12.5px; font-weight:700; font-family:inherit; padding:7px 11px; border-radius:10px; display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap}
+.sp-chip-btn.primary{background:var(--primary); color:#fff}
+.sp-chip-btn.active{background:var(--primary-light); color:var(--primary)}
+.sp-menu-wrap{position:relative}
+.sp-menu{display:none; position:absolute; right:0; top:calc(100% + 6px); min-width:176px; background:#fff; border:1px solid var(--border-soft); border-radius:12px; box-shadow:var(--shadow-lg); padding:5px; z-index:10}
+.sp-menu.open{display:block}
+.sp-menu button{width:100%; border:none; background:transparent; font-family:inherit; font-size:13px; color:var(--text-1); display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:8px; cursor:pointer; text-align:left}
+.sp-menu button:hover,.sp-menu button:active{background:var(--bg-subtle)}
+.sp-menu button i{font-size:17px}
+
+.sp-batch-bar{display:none; align-items:center; gap:10px; background:var(--primary-light); border-radius:12px; padding:8px 12px; margin-bottom:12px}
+.sp-batch-bar.show{display:flex}
+.sp-batch-all{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--primary-dark); cursor:pointer}
+.sp-batch-all input,.sp-sub-check{width:17px; height:17px; accent-color:var(--primary); cursor:pointer; flex-shrink:0}
+.sp-batch-count{flex:1; font-size:12px; color:var(--text-2); text-align:right}
+.sp-batch-bar .sp-btn{display:inline-flex; align-items:center; gap:4px; padding:7px 11px; font-size:12px}
+.sp-btn:disabled{opacity:.45; cursor:default}
+.sp-sub-card.selected{border-color:var(--primary); background:var(--primary-light)}
+.sp-sub-card.selected .sp-sub-detail{background:#fff}
+
+.sp-chart-card{border:1px solid var(--border-soft); border-radius:16px; padding:14px; margin-bottom:12px; box-shadow:var(--shadow-sm); background:#fff}
+.sp-chart-title{display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:800; margin-bottom:12px}
+.sp-chart-title i{color:var(--primary); font-size:16px}
+.sp-chart-title small{margin-left:auto; font-size:11px; font-weight:600; color:var(--text-3)}
+.sp-range{display:inline-flex; background:var(--bg-subtle); border-radius:8px; padding:2px; margin-left:auto}
+.sp-range button{border:none; background:transparent; font-size:11px; font-weight:700; color:var(--text-3); padding:3px 8px; border-radius:6px; font-family:inherit; cursor:pointer}
+.sp-range button.active{background:#fff; color:var(--primary)}
+.sp-trend{display:flex; align-items:flex-end; gap:4px; height:120px; padding-top:16px}
+.sp-trend-col{flex:1; min-width:0; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px}
+.sp-trend-bar{width:100%; max-width:22px; background:linear-gradient(180deg,#3cc49b,var(--primary)); border-radius:5px 5px 2px 2px; min-height:2px; position:relative}
+.sp-trend-bar.zero{background:var(--bg-subtle-2)}
+.sp-trend-bar span{position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-size:10px; font-weight:700; color:var(--text-2)}
+.sp-trend-label{font-size:9.5px; color:var(--text-4); white-space:nowrap; height:12px}
+.sp-dist-row{margin-bottom:10px}
+.sp-dist-row:last-child{margin-bottom:0}
+.sp-dist-top{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; gap:8px}
+.sp-dist-top span:first-child{color:var(--text-1); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sp-dist-top span:last-child{color:var(--text-3); font-size:11.5px; flex-shrink:0}
+.sp-dist-track{height:8px; background:var(--bg-subtle); border-radius:999px; overflow:hidden}
+.sp-dist-fill{height:100%; border-radius:999px; transition:width .5s ease}
+.sp-donut-wrap{display:flex; align-items:center; gap:16px}
+.sp-donut{width:96px; height:96px; border-radius:50%; flex-shrink:0; position:relative}
+.sp-donut::after{content:''; position:absolute; inset:20px; background:#fff; border-radius:50%}
+.sp-donut-center{position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1}
+.sp-donut-center b{font-size:18px; font-weight:800}
+.sp-donut-center small{font-size:10px; color:var(--text-3)}
+.sp-legend{flex:1; min-width:0; display:flex; flex-direction:column; gap:6px}
+.sp-legend-item{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2)}
+.sp-legend-item i{width:9px; height:9px; border-radius:3px; flex-shrink:0}
+.sp-legend-item em{font-style:normal; margin-left:auto; color:var(--text-3); font-size:11px}
+.sp-legend-item span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}

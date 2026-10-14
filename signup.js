@@ -573,10 +573,17 @@ async function spOpenSubmissions(eventId){
   document.getElementById('spSubsTitle').textContent = '报名数据 · ' + (spSubsCurrentEvent ? spSubsCurrentEvent.title : '');
   document.getElementById('spManagerOverlay').classList.remove('open');
   document.getElementById('spSubsSearch').value = '';
+  if(spSelectMode) spToggleSelectMode();
+  spSwitchSubsTab('list');
   document.getElementById('spSubsOverlay').classList.add('open');
   await spLoadSubmissions();
 }
 let spSubsSortDesc = true;
+let spSelectMode = false;
+let spSelected = new Set();
+let spSubsTab = 'list';
+let spTrendDays = 14;
+let spVisibleIds = [];
 const SP_AVATAR_COLORS = ['#1D9E75','#4C8DF6','#F2994A','#9B6BDF','#E6484F','#17A2B8','#D4A017','#6C7A89'];
 
 // 根据字段名推断图标：优先匹配活动里定义的字段类型，其次按关键词猜测
@@ -662,12 +669,15 @@ function spRenderSubs(){
   let list = spSubsCache.slice();
   if(q) list = list.filter(s=>Object.values(s.values||{}).some(v=>String(Array.isArray(v)?v.join(' '):v).toLowerCase().includes(q)));
   list.sort((a,b)=>{ const d = new Date(a.created_at)-new Date(b.created_at); return spSubsSortDesc ? -d : d; });
+  spVisibleIds = list.map(s=>String(s.id));
+  spUpdateBatchBar();
   if(!spSubsCache.length){
     wrap.innerHTML = `<div class="sp-subs-empty"><i class="ti ti-inbox"></i>暂无报名记录<br>分享活动链接，等待第一位报名者吧</div>`; return;
   }
   if(!list.length){
     wrap.innerHTML = `<div class="sp-subs-empty"><i class="ti ti-search-off"></i>没有找到与“${spEscapeHtml(q)}”相关的记录</div>`; return;
   }
+  spVisibleIds = list.map(s=>String(s.id));
   const dayAgo = Date.now() - 86400000;
   wrap.innerHTML = list.map(s=>{
     const vals = s.values || {};
@@ -684,8 +694,10 @@ function spRenderSubs(){
         ${copyable ? `<div class="sp-sub-item-act"><button class="sp-mini-icon-btn" title="复制" onclick="spCopyText(decodeURIComponent('${encodeURIComponent(copyText)}'))"><i class="ti ti-copy"></i></button></div>` : ''}
       </div>`;
     }).join('');
-    return `<div class="sp-sub-card" id="spSub_${s.id}">
+    const sel = spSelected.has(String(s.id));
+    return `<div class="sp-sub-card${sel?' selected':''}" id="spSub_${s.id}">
       <div class="sp-sub-head" onclick="spToggleSub('${s.id}')">
+        ${spSelectMode?`<input type="checkbox" class="sp-sub-check" ${sel?'checked':''} onclick="event.stopPropagation()" onchange="spPickSub('${s.id}',this.checked)">`:''}
         <div class="sp-sub-avatar" style="background:${color}">${spEscapeHtml(sm.name.trim().charAt(0).toUpperCase()||'?')}</div>
         <div class="sp-sub-main">
           <div class="sp-sub-name">${spEscapeHtml(sm.name)}${isNew?'<span class="sp-sub-new">NEW</span>':''}</div>
@@ -706,7 +718,10 @@ function spRenderSubs(){
     </div>`;
   }).join('');
 }
-function spToggleSub(id){ const el = document.getElementById('spSub_'+id); if(el) el.classList.toggle('open'); }
+function spToggleSub(id){
+  if(spSelectMode){ spPickSub(String(id), !spSelected.has(String(id))); spRenderSubs(); return; }
+  const el = document.getElementById('spSub_'+id); if(el) el.classList.toggle('open');
+}
 function spClearSubsSearch(){ const i = document.getElementById('spSubsSearch'); i.value=''; spRenderSubs(); i.focus(); }
 function spToggleSubsSort(){
   spSubsSortDesc = !spSubsSortDesc;
@@ -736,6 +751,7 @@ async function spLoadSubmissions(){
     spSubsCache = data || [];
     spRenderSubsStats();
     spRenderSubs();
+    if(spSubsTab==='chart') spRenderSubsCharts();
   }catch(err){
     console.error(err);
     spSubsCache = [];
@@ -754,29 +770,197 @@ async function spDeleteSubmission(id){
     spLoadSubmissions();
   }catch(err){ spToast('删除失败，请重试'); }
 }
+// ── Tab 切换 ──
+function spSwitchSubsTab(tab){
+  spSubsTab = tab;
+  document.querySelectorAll('#spSubsTabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  const isList = tab==='list';
+  document.getElementById('spSubsList').style.display = isList ? '' : 'none';
+  document.getElementById('spSubsCharts').style.display = isList ? 'none' : '';
+  document.querySelector('.sp-subs-toolbar').style.display = isList ? '' : 'none';
+  document.getElementById('spSelectModeBtn').style.display = isList ? '' : 'none';
+  if(!isList){ if(spSelectMode) spToggleSelectMode(); spRenderSubsCharts(); }
+}
+
+// ── 批量选择 / 删除 ──
+function spToggleSelectMode(){
+  spSelectMode = !spSelectMode;
+  spSelected.clear();
+  document.getElementById('spSelectModeBtn').classList.toggle('active', spSelectMode);
+  document.querySelector('#spSelectModeBtn span').textContent = spSelectMode ? '取消' : '批量';
+  document.getElementById('spBatchBar').classList.toggle('show', spSelectMode);
+  spRenderSubs();
+}
+function spPickSub(id, on){
+  id = String(id);
+  if(on) spSelected.add(id); else spSelected.delete(id);
+  const el = document.getElementById('spSub_'+id);
+  if(el) el.classList.toggle('selected', on);
+  spUpdateBatchBar();
+}
+function spSelectAllToggle(on){
+  spVisibleIds.forEach(id=> on ? spSelected.add(id) : spSelected.delete(id));
+  spRenderSubs();
+}
+function spUpdateBatchBar(){
+  const n = spSelected.size;
+  const c = document.getElementById('spBatchCount'); if(c) c.textContent = '已选 ' + n + ' 条';
+  const btn = document.getElementById('spBatchDelBtn'); if(btn) btn.disabled = n===0;
+  const all = document.getElementById('spSelectAll');
+  if(all){ all.checked = spVisibleIds.length>0 && spVisibleIds.every(id=>spSelected.has(id)); }
+}
+async function spBatchDelete(){
+  const ids = [...spSelected];
+  if(!ids.length) return;
+  if(!confirm('确定删除选中的 ' + ids.length + ' 条报名记录吗？此操作无法恢复。')) return;
+  const btn = document.getElementById('spBatchDelBtn');
+  btn.disabled = true;
+  try{
+    const client = spInitClient();
+    const { error } = await client.from(SP_CONFIG.submissionsTable).delete().in('id', ids.map(x=>isNaN(x)?x:Number(x)));
+    if(error) throw error;
+    spToast('已删除 ' + ids.length + ' 条记录');
+    spSelected.clear();
+    await spLoadSubmissions();
+  }catch(err){
+    console.error(err);
+    spToast('批量删除失败，请重试');
+    btn.disabled = false;
+  }
+}
+
+// ── 图表 ──
+function spRenderSubsCharts(){
+  const box = document.getElementById('spSubsCharts');
+  const list = spSubsCache;
+  if(!list.length){ box.innerHTML = '<div class="sp-subs-empty"><i class="ti ti-chart-bar-off"></i>暂无数据，报名后这里会生成图表</div>'; return; }
+  const colors = ['#1D9E75','#4C8DF6','#F2994A','#9B6BDF','#E6484F','#17A2B8','#D4A017','#6C7A89'];
+  let html = '';
+
+  // 1) 报名趋势
+  const days = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+  for(let i=spTrendDays-1;i>=0;i--){ const d = new Date(today); d.setDate(d.getDate()-i); days.push(d); }
+  const counts = days.map(d=>{
+    const end = new Date(d); end.setDate(end.getDate()+1);
+    return list.filter(s=>{ const t = new Date(s.created_at); return t>=d && t<end; }).length;
+  });
+  const max = Math.max(1, ...counts);
+  const inRange = counts.reduce((a,b)=>a+b,0);
+  html += `<div class="sp-chart-card">
+    <div class="sp-chart-title"><i class="ti ti-chart-line"></i>报名趋势
+      <div class="sp-range">
+        <button class="${spTrendDays===7?'active':''}" onclick="spSetTrendDays(7)">7天</button>
+        <button class="${spTrendDays===14?'active':''}" onclick="spSetTrendDays(14)">14天</button>
+        <button class="${spTrendDays===30?'active':''}" onclick="spSetTrendDays(30)">30天</button>
+      </div></div>
+    <div class="sp-trend">${days.map((d,i)=>{
+      const c = counts[i];
+      const showLbl = spTrendDays<=14 || i%5===0 || i===days.length-1;
+      return `<div class="sp-trend-col"><div class="sp-trend-bar${c?'':' zero'}" style="height:${c?Math.max(6,c/max*100):2}%">${c&&spTrendDays<=14?`<span>${c}</span>`:''}</div><div class="sp-trend-label">${showLbl?(d.getMonth()+1)+'/'+d.getDate():''}</div></div>`;
+    }).join('')}</div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:8px;text-align:right">近 ${spTrendDays} 天共 ${inRange} 条</div>
+  </div>`;
+
+  // 2) 时段分布（按小时分成 4 段）
+  const slots = [['凌晨 0-6点','ti-moon-stars',0,6],['上午 6-12点','ti-sun-low',6,12],['下午 12-18点','ti-sun',12,18],['晚上 18-24点','ti-moon',18,24]];
+  const slotCnt = slots.map(([,,a,b])=>list.filter(s=>{ const hr = new Date(s.created_at).getHours(); return hr>=a && hr<b; }).length);
+  const slotMax = Math.max(1, ...slotCnt);
+  html += `<div class="sp-chart-card"><div class="sp-chart-title"><i class="ti ti-clock-hour-4"></i>报名时段</div>
+    ${slots.map((s,i)=>`<div class="sp-dist-row"><div class="sp-dist-top"><span><i class="ti ${s[1]}" style="margin-right:5px;color:var(--text-3)"></i>${s[0]}</span><span>${slotCnt[i]} 条</span></div>
+      <div class="sp-dist-track"><div class="sp-dist-fill" style="width:${slotCnt[i]/slotMax*100}%;background:${colors[i]}"></div></div></div>`).join('')}
+  </div>`;
+
+  // 3) 选择类字段分布（单选 / 下拉 / 多选）
+  const fields = (spSubsCurrentEvent && spSubsCurrentEvent.fields || []).filter(f=>['select','radio','checkbox'].includes(f.type));
+  fields.forEach(f=>{
+    const tally = {};
+    let answered = 0;
+    list.forEach(s=>{
+      const v = (s.values||{})[f.label];
+      const arr = Array.isArray(v) ? v : (v ? [v] : []);
+      if(arr.length) answered++;
+      arr.forEach(x=>{ tally[x] = (tally[x]||0)+1; });
+    });
+    const entries = Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+    if(!entries.length) return;
+    const total = entries.reduce((n,e)=>n+e[1],0);
+    if(f.type!=='checkbox' && entries.length<=6){
+      // 环形图
+      let acc = 0;
+      const stops = entries.map((e,i)=>{ const from = acc/total*100; acc += e[1]; return `${colors[i%colors.length]} ${from}% ${acc/total*100}%`; }).join(',');
+      html += `<div class="sp-chart-card"><div class="sp-chart-title"><i class="ti ${spFieldIcon(f.type)}"></i>${spEscapeHtml(f.label)}<small>${answered} 人作答</small></div>
+        <div class="sp-donut-wrap"><div class="sp-donut" style="background:conic-gradient(${stops})"><div class="sp-donut-center"><b>${total}</b><small>票</small></div></div>
+        <div class="sp-legend">${entries.map((e,i)=>`<div class="sp-legend-item"><i style="background:${colors[i%colors.length]}"></i><span>${spEscapeHtml(e[0])}</span><em>${e[1]} · ${Math.round(e[1]/total*100)}%</em></div>`).join('')}</div></div></div>`;
+    }else{
+      const m = entries[0][1];
+      html += `<div class="sp-chart-card"><div class="sp-chart-title"><i class="ti ${spFieldIcon(f.type)}"></i>${spEscapeHtml(f.label)}<small>${answered} 人作答</small></div>
+        ${entries.map((e,i)=>`<div class="sp-dist-row"><div class="sp-dist-top"><span>${spEscapeHtml(e[0])}</span><span>${e[1]} 人 · ${Math.round(e[1]/answered*100)}%</span></div><div class="sp-dist-track"><div class="sp-dist-fill" style="width:${e[1]/m*100}%;background:${colors[i%colors.length]}"></div></div></div>`).join('')}</div>`;
+    }
+  });
+
+  // 4) 人数汇总
+  const peopleVals = list.map(s=>spSubSummary(s).num).filter(n=>n);
+  if(peopleVals.length){
+    const sum = peopleVals.reduce((a,b)=>a+b,0);
+    html += `<div class="sp-chart-card"><div class="sp-chart-title"><i class="ti ti-users"></i>人数概览</div>
+      <div class="sp-stats" style="margin:0">
+        <div class="sp-stat accent"><div class="sp-stat-top"><i class="ti ti-sum"></i>总人数</div><div class="sp-stat-num">${sum}</div></div>
+        <div class="sp-stat"><div class="sp-stat-top"><i class="ti ti-chart-arrows"></i>平均每组</div><div class="sp-stat-num">${(sum/peopleVals.length).toFixed(1)}</div></div>
+        <div class="sp-stat"><div class="sp-stat-top"><i class="ti ti-trophy"></i>最大一组</div><div class="sp-stat-num">${Math.max(...peopleVals)}</div></div>
+      </div></div>`;
+  }
+  box.innerHTML = html;
+}
+function spSetTrendDays(n){ spTrendDays = n; spRenderSubsCharts(); }
+
+// ── 导出菜单 / Excel ──
+function spToggleExportMenu(ev){
+  ev.stopPropagation();
+  document.getElementById('spExportMenu').classList.toggle('open');
+}
+document.addEventListener('click', ()=>{ const m = document.getElementById('spExportMenu'); if(m) m.classList.remove('open'); });
+
+function spSubsTable(){
+  const cols = [];
+  const seen = new Set();
+  // 先按活动里字段定义的顺序，再补充历史数据里出现过的其他列
+  ((spSubsCurrentEvent && spSubsCurrentEvent.fields) || []).forEach(f=>{ if(!seen.has(f.label)){ seen.add(f.label); cols.push(f.label); } });
+  spSubsCache.forEach(s=>Object.keys(s.values||{}).forEach(k=>{ if(!seen.has(k)){ seen.add(k); cols.push(k); } }));
+  const header = ['提交时间', ...cols];
+  const rows = spSubsCache.map(s=>{
+    const vals = s.values || {};
+    return [spFmtFull(s.created_at), ...cols.map(c=>{ const v = vals[c]; return Array.isArray(v) ? v.join('、') : (v==null?'':v); })];
+  });
+  return { header, rows, cols };
+}
+function spExportSubsXLSX(){
+  if(!spSubsCache.length){ spToast('暂无数据可导出'); return; }
+  if(!window.XLSX){ spToast('Excel 组件未加载，已改为导出 CSV'); spExportSubsCSV(); return; }
+  const { header, rows } = spSubsTable();
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  ws['!cols'] = header.map((h,i)=>{
+    const w = Math.max(String(h).length*2, ...rows.map(r=>String(r[i]==null?'':r[i]).length*1.6));
+    return { wch: Math.min(40, Math.max(10, Math.ceil(w))) };
+  });
+  const wb = XLSX.utils.book_new();
+  const title = (spSubsCurrentEvent ? spSubsCurrentEvent.title : '报名数据').replace(/[\\\/\?\*\[\]:]/g,'').slice(0,28) || '报名数据';
+  XLSX.utils.book_append_sheet(wb, ws, title);
+  XLSX.writeFile(wb, `报名数据_${spSubsCurrentEvent?spSubsCurrentEvent.title:'export'}_${Date.now()}.xlsx`);
+  spToast('已导出 Excel');
+}
 function spExportSubsCSV(){
   if(!spSubsCache.length){ spToast('暂无数据可导出'); return; }
-  const cols = new Set();
-  spSubsCache.forEach(s=>Object.keys(s.values||{}).forEach(k=>cols.add(k)));
-  const colList = ['提交时间', ...cols];
-  const rows = [colList.join(',')];
-  spSubsCache.forEach(s=>{
-    const t = s.created_at ? new Date(s.created_at).toLocaleString('zh-CN') : '';
-    const vals = s.values || {};
-    const row = [t, ...[...cols].map(c=>{
-      const v = vals[c];
-      const str = Array.isArray(v) ? v.join('、') : (v==null?'':String(v));
-      return '"'+str.replace(/"/g,'""')+'"';
-    })];
-    rows.push(row.join(','));
-  });
-  const csv = '\uFEFF' + rows.join('\n');
+  const { header, rows } = spSubsTable();
+  const esc = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+  const csv = '\uFEFF' + [header, ...rows].map(r=>r.map(esc).join(',')).join('\n');
   const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `报名数据_${spSubsCurrentEvent?spSubsCurrentEvent.title:'export'}_${Date.now()}.csv`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  spToast('已导出 CSV');
 }
 
 // ── 启动 ──
